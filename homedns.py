@@ -137,7 +137,7 @@ def lookup_upstream(request, reply):
                 port = 53
             r_data = request.send(ip, port, timeout=config['server']['timeout'])
         except Exception as err:
-            logging.info(err)
+            logging.warn('Lookup upstream: %s' % err)
             continue
         r_reply = DNSRecord.parse(r_data)
         for rr in r_reply.rr:
