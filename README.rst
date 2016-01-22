@@ -7,3 +7,4 @@ Feature
 =======
 1. DNS Record: A, AAAA, CNAME, NS, MX, TXT, SRV...
 #. proxy dns. To transfer to upstream dns server
+#. TCP and UDP connection

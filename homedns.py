@@ -304,10 +304,6 @@ def run():
     global config
     config = init_config(args.config)
 
-    print(config)
-    for name, rrs in local_domain['record'].iteritems():
-        print(name, rrs)
-
     __log_level__ = config['log']['level']
     __log_file__ = config['log']['file']
 
@@ -331,10 +327,20 @@ def run():
             level=__log_level__,
         )
 
+    logger.debug('Config: %s', config)
+    logger.debug('Domain Record:')
+    for name, rrs in local_domain['record'].iteritems():
+        logger.debug('%s => %s' % (
+            name,
+            ', '.join(['%s(%s)' % (rdata.__class__.__name__, rdata) for rdata in rrs]),
+        ))
+
     logger.info("Starting nameserver...")
 
     ip = config['server']['listen_ip']
     port = config['server']['listen_port']
+
+    logger.info('Listen on %s:%s' % (ip, port))
 
     servers = []
     if 'udp' in config['server']['protocols']:
