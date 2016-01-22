@@ -23,6 +23,64 @@ logger = logging.getLogger(__name__)
 local_domain = {}
 
 
+class DomainName(str):
+    def __getattr__(self, item):
+        if item == '@':
+            return self
+        else:
+            return DomainName(item + '.' + self)
+
+
+class BaseRequestHandler(SocketServer.BaseRequestHandler):
+
+    def get_data(self):
+        raise NotImplementedError
+
+    def send_data(self, data):
+        raise NotImplementedError
+
+    def handle(self):
+        logger.info('%s REQUEST %s' % ('=' * 35, '=' * 36))
+        now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+        logger.info("%s request %s (%s %s):" % (
+            self.__class__.__name__[:3],
+            now,
+            self.client_address[0],
+            self.client_address[1]
+        ))
+        try:
+            data = self.get_data()
+            logger.debug('%s %s' % (len(data), data.encode('hex')))
+            self.send_data(dns_response(data))
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+
+
+class TCPRequestHandler(BaseRequestHandler):
+
+    def get_data(self):
+        data = self.request.recv(8192).strip()
+        sz = int(data[:2].encode('hex'), 16)
+        if sz < len(data) - 2:
+            raise Exception("Wrong size of TCP packet")
+        elif sz > len(data) - 2:
+            raise Exception("Too big TCP packet")
+        return data[2:]
+
+    def send_data(self, data):
+        sz = hex(len(data))[2:].zfill(4).decode('hex')
+        return self.request.sendall(sz + data)
+
+
+class UDPRequestHandler(BaseRequestHandler):
+
+    def get_data(self):
+        return self.request[0].strip()
+
+    def send_data(self, data):
+        return self.request[1].sendto(data, self.client_address)
+
+
 def lookup_local_domain(qn, qt):
     r = []
     if qn.matchSuffix(local_domain['name']):
@@ -103,61 +161,6 @@ def dns_response(data):
     return reply.pack()
 
 
-class DomainName(str):
-    def __getattr__(self, item):
-        return DomainName(item + '.' + self)
-
-
-class BaseRequestHandler(SocketServer.BaseRequestHandler):
-
-    def get_data(self):
-        raise NotImplementedError
-
-    def send_data(self, data):
-        raise NotImplementedError
-
-    def handle(self):
-        logger.info('%s REQUEST %s' % ('=' * 35, '=' * 36))
-        now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-        logger.info("%s request %s (%s %s):" % (
-            self.__class__.__name__[:3],
-            now,
-            self.client_address[0],
-            self.client_address[1]
-        ))
-        try:
-            data = self.get_data()
-            logger.debug('%s %s' % (len(data), data.encode('hex')))
-            self.send_data(dns_response(data))
-        except Exception:
-            traceback.print_exc(file=sys.stderr)
-
-
-class TCPRequestHandler(BaseRequestHandler):
-
-    def get_data(self):
-        data = self.request.recv(8192).strip()
-        sz = int(data[:2].encode('hex'), 16)
-        if sz < len(data) - 2:
-            raise Exception("Wrong size of TCP packet")
-        elif sz > len(data) - 2:
-            raise Exception("Too big TCP packet")
-        return data[2:]
-
-    def send_data(self, data):
-        sz = hex(len(data))[2:].zfill(4).decode('hex')
-        return self.request.sendall(sz + data)
-
-
-class UDPRequestHandler(BaseRequestHandler):
-
-    def get_data(self):
-        return self.request[0].strip()
-
-    def send_data(self, data):
-        return self.request[1].sendto(data, self.client_address)
-
-
 def init_config(config_file):
     log = {
         'file': 'homedns.log',
@@ -172,7 +175,7 @@ def init_config(config_file):
     }
     domain = {
         'name': 'mylocal.net',
-        'domain': {
+        '@': {
             'NS': ['ns1', 'ns2',],
             'MX': ['mail',],
             'A': '127.0.0.1',
@@ -204,7 +207,7 @@ def init_config(config_file):
             'mail': ['::1'],
         },
         'CNAME': {
-            'www': ['ns1'],
+            'www': ['@'],
             'ldap': ['www'],
             'kms': ['www'],
         },
@@ -236,7 +239,7 @@ def init_config(config_file):
     for typ, records in config['domain'].items():
         if typ == 'name':
             pass
-        elif typ == 'domain':
+        elif typ == '@':
             for typ, value in records.items():
                 if typ in ['NS', 'MX']:
                     domain_record[DOMAIN] += [getattr(dnslib, typ)(getattr(DOMAIN, v)) for v in value]
