@@ -150,7 +150,7 @@ class BaseRequestHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         logger.info('%s REQUEST %s' % ('=' * 35, '=' * 36))
         now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-        logger.info("%s request %s (%s %s):" % (
+        logger.debug("%s request %s (%s %s):" % (
             self.__class__.__name__[:3],
             now,
             self.client_address[0],
@@ -343,7 +343,7 @@ def run():
         __log_level__ = logging.WARNING - (args.verbose * 10)
 
     if __log_level__ <= logging.DEBUG:
-        formatter = '[%(levelname)s] [%(name)s %(lineno)d] %(message)s'
+        formatter = '[%(name)s %(lineno)d] %(message)s'
     else:
         formatter = '%(message)s'
 
