@@ -6,14 +6,13 @@ import os.path
 import sys
 import time
 import threading
-import traceback
 import SocketServer
 import logging
 import argparse
 import json
 
 import dnslib
-from dnslib import RR, QTYPE, DNSLabel, DNSRecord, DNSHeader
+from dnslib import RR, QTYPE, DNSRecord, DNSHeader
 
 
 __version__ = '0.1.0'
@@ -164,8 +163,8 @@ class BaseRequestHandler(SocketServer.BaseRequestHandler):
             data = self.get_data()
             logger.info('%s %s' % (len(data), data.encode('hex')))
             self.send_data(dns_response(data))
-        except Exception:
-            traceback.print_exc(file=sys.stderr)
+        except Exception as err:
+            logger.fatal('send_data: %s' % err)
 
 
 class TCPRequestHandler(BaseRequestHandler):
@@ -211,8 +210,6 @@ def lookup_local(request, reply):
 
 
 def lookup_upstream(request, reply):
-    logger.info('%s REPLY %s' % ('-' * 36, '-' * 37))
-    logger.info(reply)
     for up in config['server']['upstreams']:
         try:
             if ':' in up:
@@ -221,9 +218,12 @@ def lookup_upstream(request, reply):
             else:
                 ip = up
                 port = 53
-            r_data = request.send(ip, port, timeout=config['server']['timeout'])
+            r_data = request.send(
+                ip, port,
+                timeout=config['server']['timeout'],
+            )
         except Exception as err:
-            logging.warn('Lookup upstream: %s' % err)
+            logger.fatal('\tLookup from %s:%s: %s' % (ip, port, err))
             continue
         r_reply = DNSRecord.parse(r_data)
         for rr in r_reply.rr:
@@ -239,10 +239,14 @@ def dns_response(data):
     logger.warn('\tRequest: %s(%s)' % (qn, qt))
     logger.info(request)
 
-    reply = DNSRecord(DNSHeader(id=request.header.id, qr=1, aa=1, ra=1), q=request.q)
+    reply = DNSRecord(
+        DNSHeader(id=request.header.id, qr=1, aa=1, ra=1),
+        q=request.q
+    )
 
-    reply = lookup_local(request, reply)
-    if not reply.rr:
+    if config['server']['search'] in ['all', 'local']:
+        reply = lookup_local(request, reply)
+    if not reply.rr and config['server']['search'] in ['all', 'upstream']:
         reply = lookup_upstream(request, reply)
 
     logger.info('%s REPLY %s' % ('-' * 36, '-' * 37))
@@ -269,9 +273,11 @@ def init_config(config_file):
         'listen_port': 53,
         'upstreams': ['114.114.114.114'],
         'timeout': 10,
+        # 'all', 'local' or 'upstream'
+        'search': 'all',
     }
     domain = [{
-        'name': 'mylocal.net',
+        'name': 'mylocal.home',
         'records': {
             'NS': ['ns1', 'ns2'],
             'MX': ['mail'],
