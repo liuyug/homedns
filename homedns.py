@@ -11,6 +11,7 @@ import logging
 import argparse
 import json
 
+import netaddr
 import dnslib
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader
 
@@ -153,12 +154,16 @@ class BaseRequestHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         logger.info('%s REQUEST %s' % ('=' * 35, '=' * 36))
         now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
+        client_ip = self.client_address[0]
+        client_port = self.client_address[1]
         logger.warn("%s request %s (%s %s):" % (
             self.__class__.__name__[:3],
             now,
-            self.client_address[0],
-            self.client_address[1]
+            client_ip, client_port,
         ))
+        if client_ip not in allowed_hosts:
+            logger.warn('\t*** Not allowed host: %s ***' % client_ip)
+            return
         try:
             data = self.get_data()
             logger.info('%s %s' % (len(data), data.encode('hex')))
@@ -275,6 +280,7 @@ def init_config(config_file):
         'timeout': 10,
         # 'all', 'local' or 'upstream'
         'search': 'all',
+        'allowed_hosts': ['127.0.0.1'],
     }
     domain = [{
         'name': 'mylocal.home',
@@ -325,6 +331,7 @@ def init_config(config_file):
     }]
     global config
     global local_domains
+    global allowed_hosts
     if os.path.exists(config_file):
         config = json.load(open(config_file))
     else:
@@ -334,6 +341,16 @@ def init_config(config_file):
             'domain': domain,
         }
         json.dump(config, open(config_file, 'w'), indent=4)
+
+    allowed_hosts = netaddr.IPSet()
+    for hosts in config['server']['allowed_hosts']:
+        if '*' in hosts or '-' in hosts:
+            allowed_hosts.add(netaddr.IPGlob(hosts))
+        elif '/' in hosts:
+            allowed_hosts.add(netaddr.IPNetwork(hosts))
+        else:
+            allowed_hosts.add(hosts)
+
     local_domains = []
     for domain in config['domain']:
         ld = Domain(domain['name'])
