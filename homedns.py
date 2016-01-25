@@ -128,13 +128,17 @@ class Domain(object):
                                 'type': rqt,
                                 'rdata': rdata,
                             })
-                            logger.debug('%s => %s(%s)' % (name, rdata, rqt))
+                            logger.debug('Find: %s => %s(%s)' % (
+                                name, rqt, rdata
+                            ))
                         elif rqt in ['CNAME']:
                             r.append({
                                 'type': rqt,
                                 'rdata': rdata,
                             })
-                            logger.debug('%s => %s(%s)' % (name, rdata, rqt))
+                            logger.debug('Find: %s => %s(%s)' % (
+                                name, rqt, rdata
+                            ))
                             r += self.search(rdata.label, qt)
         return r
 
@@ -150,7 +154,7 @@ class BaseRequestHandler(SocketServer.BaseRequestHandler):
     def handle(self):
         logger.info('%s REQUEST %s' % ('=' * 35, '=' * 36))
         now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
-        logger.debug("%s request %s (%s %s):" % (
+        logger.warn("%s request %s (%s %s):" % (
             self.__class__.__name__[:3],
             now,
             self.client_address[0],
@@ -158,7 +162,7 @@ class BaseRequestHandler(SocketServer.BaseRequestHandler):
         ))
         try:
             data = self.get_data()
-            logger.debug('%s %s' % (len(data), data.encode('hex')))
+            logger.info('%s %s' % (len(data), data.encode('hex')))
             self.send_data(dns_response(data))
         except Exception:
             traceback.print_exc(file=sys.stderr)
@@ -229,6 +233,10 @@ def lookup_upstream(request, reply):
 
 def dns_response(data):
     request = DNSRecord.parse(data)
+
+    qn = request.q.qname
+    qt = QTYPE[request.q.qtype]
+    logger.warn('\tRequest: %s(%s)' % (qn, qt))
     logger.info(request)
 
     reply = DNSRecord(DNSHeader(id=request.header.id, qr=1, aa=1, ra=1), q=request.q)
@@ -239,6 +247,13 @@ def dns_response(data):
 
     logger.info('%s REPLY %s' % ('-' * 36, '-' * 37))
     logger.info(reply)
+    if reply.rr:
+        for r in reply.rr:
+            rqn = r.rdata
+            rqt = QTYPE[r.rtype]
+            logger.warn('\tReturn : %s(%s)' % (rqn, rqt))
+    else:
+        logger.warn('\tReturn : N/A')
 
     return reply.pack()
 
@@ -326,7 +341,7 @@ def run():
     parser.add_argument('--version', action='version',
                         version='%%(prog)s %s' % __version__)
     parser.add_argument('-v', '--verbose', help='verbose help',
-                        action='count', default=0)
+                        action='count', default=-1)
     parser.add_argument(
         '--config',
         help='read config from file',
@@ -337,9 +352,7 @@ def run():
     init_config(args.config)
 
     __log_level__ = config['log']['level']
-    __log_file__ = config['log']['file']
-
-    if args.verbose > 0:
+    if args.verbose >= 0:
         __log_level__ = logging.WARNING - (args.verbose * 10)
 
     if __log_level__ <= logging.DEBUG:
@@ -347,12 +360,13 @@ def run():
     else:
         formatter = '%(message)s'
 
-    if args.verbose > 0:
+    if args.verbose >= 0:
         logging.basicConfig(
             format=formatter,
             level=__log_level__,
         )
     else:
+        __log_file__ = config['log']['file']
         logging.basicConfig(
             filename=__log_file__,
             format=formatter,
@@ -365,12 +379,12 @@ def run():
         logger.debug(domain)
         domain.output_records(logger.debug)
 
-    logger.info("Starting nameserver...")
+    logger.error("Starting nameserver...")
 
     ip = config['server']['listen_ip']
     port = config['server']['listen_port']
 
-    logger.info('Listen on %s:%s' % (ip, port))
+    logger.error('Listen on %s:%s' % (ip, port))
 
     servers = []
     if 'udp' in config['server']['protocols']:
@@ -383,10 +397,15 @@ def run():
         )
 
     for s in servers:
-        thread = threading.Thread(target=s.serve_forever)  # that thread will start one more thread for each request
-        thread.daemon = True  # exit the server thread when the main thread terminates
+        # that thread will start one more thread for each request
+        thread = threading.Thread(target=s.serve_forever)
+        # exit the server thread when the main thread terminates
+        thread.daemon = True
         thread.start()
-        logger.info("%s server loop running in thread: %s" % (s.RequestHandlerClass.__name__[:3], thread.name))
+        logger.error("%s server loop running in thread: %s" % (
+            s.RequestHandlerClass.__name__[:3],
+            thread.name
+        ))
 
     try:
         while 1:
