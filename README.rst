@@ -12,3 +12,4 @@ Feature
 TODO
 ====
 1. support many dns upstream server.
+2. allow access list

@@ -20,7 +20,6 @@ __version__ = '0.1.0'
 
 
 logger = logging.getLogger(__name__)
-local_domain = {}
 
 
 class DomainName(str):
@@ -29,6 +28,115 @@ class DomainName(str):
             return self
         else:
             return DomainName(item + '.' + self)
+
+
+class Domain(object):
+    """
+    @:    current domain
+    """
+    def __init__(self, name):
+        self.name = DomainName(name)
+        self.records = {}
+
+    def __repr__(self):
+        return '<Domain: %s>' % self.name
+
+    def __str__(self):
+        return '%s' % self.name
+
+    def __bool__(self):
+        return bool(self.records)
+
+    def create(self, data):
+        for typ, records in data.items():
+            if typ in ['SOA']:
+                dn = self.get_subdomain()
+                self.records[dn] += [getattr(dnslib, typ)(
+                    mname=self.get_subdomain(records['mname']),
+                    rname=self.get_subdomain(records['rname']),
+                    times=(
+                        records['serial'],
+                        records['refresh'],
+                        records['retry'],
+                        records['expire'],
+                        records['minimum'],
+                    )
+                )]
+            elif typ in ['NS', 'MX']:
+                dn = self.get_subdomain()
+                self.records[dn] += [
+                    getattr(dnslib, typ)(self.get_subdomain(v)) for v in records
+                ]
+            elif typ in ['A', 'AAAA']:
+                for name, value in records.items():
+                    dn = self.get_subdomain(name)
+                    self.records[dn] += [getattr(dnslib, typ)(v) for v in value]
+            elif typ in ['CNAME']:
+                for name, value in records.items():
+                    dn = self.get_subdomain(name)
+                    self.records[dn] += [
+                        getattr(dnslib, typ)(self.get_subdomain(v)) for v in value
+                    ]
+            elif typ in ['TXT']:
+                for name, value in records.items():
+                    dn = self.get_subdomain(name)
+                    self.records[dn] = [getattr(dnslib, typ)(value)]
+            elif typ in ['SRV']:
+                for name, value in records.items():
+                    dn = self.get_subdomain(name)
+                    for v in value:
+                        v = v.split(' ')
+                        self.records[dn].append(getattr(dnslib, typ)(
+                            priority=int(v[0]),
+                            weight=int(v[1]),
+                            port=int(v[2]),
+                            target=self.get_subdomain(v[3])
+                        ))
+            else:
+                logger.warn('DNS Record %s(%s) need to be handled...' % (typ, name))
+
+    def get_subdomain(self, subname='@'):
+        if subname == '@':
+            dn = self.name
+        else:
+            dn = getattr(self.name, subname)
+        if dn not in self.records:
+            self.records[dn] = []
+        return dn
+
+    def output_records(self, out):
+        for name, rrs in self.records.items():
+            out('%s => %s' % (name, ', '.join([
+                '%s(%s)' % (
+                    rdata.__class__.__name__,
+                    rdata) for rdata in rrs
+            ])))
+
+    def search(self, qn, qt):
+        """
+        qn: query domain name, DNSLabel
+        qt: query domain type, default 'A' and 'AAAA'
+        """
+        r = []
+        if qn.matchSuffix(self.get_subdomain()):
+            for name, rrs in self.records.items():
+                if name == qn:
+                    for rdata in rrs:
+                        rqt = rdata.__class__.__name__
+                        if qt in ['*', rqt]:
+                            r.append({
+                                'type': rqt,
+                                'rdata': rdata,
+                            })
+                            logger.debug('%s => %s(%s)' % (name, rdata, rqt))
+                        elif rqt in ['CNAME']:
+                            r.append({
+                                'type': rqt,
+                                'rdata': rdata,
+                            })
+                            logger.debug('%s => %s(%s)' % (name, rdata, rqt))
+                            r += self.search(rdata.label, qt)
+        return r
 
 
 class BaseRequestHandler(SocketServer.BaseRequestHandler):
@@ -81,46 +189,20 @@ class UDPRequestHandler(BaseRequestHandler):
         return self.request[1].sendto(data, self.client_address)
 
 
-def lookup_local_domain(qn, qt):
-    r = []
-    if qn.matchSuffix(local_domain['name']):
-        for name, rrs in local_domain['record'].iteritems():
-            if name == qn:
-                for rdata in rrs:
-                    rqt = rdata.__class__.__name__
-                    if qt in ['*', rqt]:
-                        r.append({
-                            'type': rqt,
-                            'rdata': rdata,
-                        })
-                        logger.debug('%s => %s(%s)' % (name, rdata, rqt))
-                    if rqt in ['CNAME']:
-                        r.append({
-                            'type': rqt,
-                            'rdata': rdata,
-                        })
-                        logger.debug('%s => %s(%s)' % (name, rdata, rqt))
-                        r += lookup_local_domain(rdata.label, qt)
-    return r
-
-
 def lookup_local(request, reply):
     qn = request.q.qname
     qt = QTYPE[request.q.qtype]
 
-    rr_data = lookup_local_domain(qn, qt)
-    for r in rr_data:
-        answer = RR(
-            rname=qn,
-            rtype=getattr(QTYPE, r['type']),
-            rclass=1, ttl=60 * 5,
-            rdata=r['rdata'],
-        )
-        if qt == r['type']:
+    for domain in local_domains:
+        rr_data = domain.search(qn, qt)
+        for r in rr_data:
+            answer = RR(
+                rname=qn,
+                rtype=getattr(QTYPE, r['type']),
+                rclass=1, ttl=60 * 5,
+                rdata=r['rdata'],
+            )
             reply.add_answer(answer)
-        else:
-            reply.add_answer(answer)
-
     return reply
 
 
@@ -173,13 +255,11 @@ def init_config(config_file):
         'upstreams': ['114.114.114.114'],
         'timeout': 10,
     }
-    domain = {
+    domain = [{
         'name': 'mylocal.net',
-        '@': {
-            'NS': ['ns1', 'ns2',],
-            'MX': ['mail',],
-            'A': '127.0.0.1',
-            'AAAA': '::1',
+        'records': {
+            'NS': ['ns1', 'ns2'],
+            'MX': ['mail'],
             'SOA': {
                 'mname': 'ns1',
                 'rname': 'mail',
@@ -193,35 +273,39 @@ def init_config(config_file):
                 # 60 * 60 * 1
                 'minimum': 3600,
             },
+            'A': {
+                '@': ['127.0.0.1'],
+                # MX and NS must be A record
+                'ns1': ['127.0.0.1'],
+                'ns2': ['127.0.0.1'],
+                'mail': ['127.0.0.1'],
+            },
+            'AAAA': {
+                '@': ['::1'],
+                # MX and NS must be A record
+                'ns1': ['::1'],
+                'ns2': ['::1'],
+                'mail': ['::1'],
+            },
+            'CNAME': {
+                'www': ['@'],
+                'ldap': ['www'],
+                'kms': ['www'],
+            },
+            'TXT': {
+                'fun': 'happy!',
+                'look': 'where?',
+            },
+            'SRV': {
+                '_ldap._tcp': ['0 100 389 ldap'],
+                '_vlmcs._tcp': ['0 100 1688 kms'],
+            },
         },
-        'A': {
-            # MX and NS must be A record
-            'ns1': ['127.0.0.1'],
-            'ns2': ['127.0.0.1'],
-            'mail': ['127.0.0.1'],
-        },
-        'AAAA': {
-            # MX and NS must be A record
-            'ns1': ['::1'],
-            'ns2': ['::1'],
-            'mail': ['::1'],
-        },
-        'CNAME': {
-            'www': ['@'],
-            'ldap': ['www'],
-            'kms': ['www'],
-        },
-        'TXT': {
-            'fun': 'happy!',
-            'look': 'where?',
-        },
-        'SRV': {
-            '_ldap._tcp': ['0 100 389 ldap'],
-            '_vlmcs._tcp': ['0 100 1688 kms'],
-        },
-    }
+    }]
+    global config
+    global local_domains
     if os.path.exists(config_file):
-        config = json.load(open(config_file), encoding='ascii')
+        config = json.load(open(config_file))
     else:
         config = {
             'log': log,
@@ -229,65 +313,11 @@ def init_config(config_file):
             'domain': domain,
         }
         json.dump(config, open(config_file, 'w'), indent=4)
-    DOMAIN = DomainName(config['domain'].get('name', ''))
-    if not DOMAIN:
-        return config
-    domain_record = {}
-    local_domain['name'] = DNSLabel(DOMAIN)
-    local_domain['record'] = domain_record
-    domain_record[DOMAIN] = []
-    for typ, records in config['domain'].items():
-        if typ == 'name':
-            pass
-        elif typ == '@':
-            for typ, value in records.items():
-                if typ in ['NS', 'MX']:
-                    domain_record[DOMAIN] += [getattr(dnslib, typ)(getattr(DOMAIN, v)) for v in value]
-                elif typ in ['A', 'AAAA']:
-                    domain_record[DOMAIN] += [getattr(dnslib, typ)(value)]
-                elif typ in ['SOA']:
-                    domain_record[DOMAIN] += [getattr(dnslib, typ)(
-                        mname=getattr(DOMAIN, value['mname']),
-                        rname=getattr(DOMAIN, value['rname']),
-                        times=(
-                            value['serial'],
-                            value['refresh'],
-                            value['retry'],
-                            value['expire'],
-                            value['minimum'],
-                        )
-                    )]
-        elif typ in ['A', 'AAAA']:
-            for name, value in records.items():
-                dn = getattr(DOMAIN, name)
-                if dn not in domain_record:
-                    domain_record[dn] = []
-                domain_record[dn] += [getattr(dnslib, typ)(v) for v in value]
-        elif typ in ['CNAME']:
-            for name, value in records.items():
-                dn = getattr(DOMAIN, name)
-                if dn not in domain_record:
-                    domain_record[dn] = []
-                domain_record[dn] += [getattr(dnslib, typ)(getattr(DOMAIN, v)) for v in value]
-        elif typ in ['TXT']:
-            for name, value in records.items():
-                dn = getattr(DOMAIN, name)
-                domain_record[dn] = [getattr(dnslib, typ)(value)]
-        elif typ in ['SRV']:
-            for name, value in records.items():
-                dn = getattr(DOMAIN, name)
-                if dn not in domain_record:
-                    domain_record[dn] = []
-                for v in value:
-                    v = v.split(' ')
-                    domain_record[dn].append(getattr(dnslib, typ)(
-                        priority=int(v[0]),
-                        weight=int(v[1]),
-                        port=int(v[2]),
-                        target=getattr(DOMAIN, v[3])
-                    ))
-        else:
-            logger.warn('DNS domain_record %s(%s) need to be handled...' % (typ, name))
+    local_domains = []
+    for domain in config['domain']:
+        ld = Domain(domain['name'])
+        ld.create(domain['records'])
+        local_domains.append(ld)
     return config
 
 
@@ -304,8 +334,7 @@ def run():
     )
     args = parser.parse_args()
 
-    global config
-    config = init_config(args.config)
+    init_config(args.config)
 
     __log_level__ = config['log']['level']
     __log_file__ = config['log']['file']
@@ -332,11 +361,9 @@ def run():
 
     logger.debug('Config: %s', config)
     logger.debug('Domain Record:')
-    for name, rrs in local_domain['record'].iteritems():
-        logger.debug('%s => %s' % (
-            name,
-            ', '.join(['%s(%s)' % (rdata.__class__.__name__, rdata) for rdata in rrs]),
-        ))
+    for domain in local_domains:
+        logger.debug(domain)
+        domain.output_records(logger.debug)
 
     logger.info("Starting nameserver...")
 
@@ -359,7 +386,7 @@ def run():
         thread = threading.Thread(target=s.serve_forever)  # that thread will start one more thread for each request
         thread.daemon = True  # exit the server thread when the main thread terminates
         thread.start()
-        logger.info( "%s server loop running in thread: %s" % (s.RequestHandlerClass.__name__[:3], thread.name))
+        logger.info("%s server loop running in thread: %s" % (s.RequestHandlerClass.__name__[:3], thread.name))
 
     try:
         while 1:
