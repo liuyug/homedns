@@ -63,7 +63,7 @@ class Domain(object):
                 self.records[dn] += [
                     getattr(dnslib, typ)(self.get_subdomain(v)) for v in records
                 ]
-            elif typ in ['A', 'AAAA']:
+            elif typ in ['A', 'AAAA', 'TXT']:
                 for name, value in records.items():
                     dn = self.get_subdomain(name)
                     self.records[dn] += [getattr(dnslib, typ)(v) for v in value]
@@ -73,10 +73,6 @@ class Domain(object):
                     self.records[dn] += [
                         getattr(dnslib, typ)(self.get_subdomain(v)) for v in value
                     ]
-            elif typ in ['TXT']:
-                for name, value in records.items():
-                    dn = self.get_subdomain(name)
-                    self.records[dn] = [getattr(dnslib, typ)(value)]
             elif typ in ['SRV']:
                 for name, value in records.items():
                     dn = self.get_subdomain(name)
@@ -338,8 +334,9 @@ def init_config(config_file):
                 'kms': ['www'],
             },
             'TXT': {
-                'fun': 'happy!',
-                'look': 'where?',
+                'fun': ['happy!'],
+                'look': ['where?'],
+                '@': ['domain text', 'root domain']
             },
             'SRV': {
                 '_ldap._tcp': ['0 100 389 ldap'],
