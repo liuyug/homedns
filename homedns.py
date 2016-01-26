@@ -280,7 +280,7 @@ def dns_response(data):
 def init_config(config_file):
     log = {
         'file': 'homedns.log',
-        'level': 0,
+        'level': 30,
     }
     server = {
         'protocols': ['udp'],

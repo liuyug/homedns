@@ -18,5 +18,5 @@ Pack
 ------
 ::
 
-    pyinstaller --clean --noupx -w -F homedns.py
+    pyinstaller --clean --noupx -c -F homedns.py
 
