@@ -336,7 +336,7 @@ def init_config(config_file):
             'TXT': {
                 'fun': ['happy!'],
                 'look': ['where?'],
-                '@': ['domain text', 'root domain']
+                '@': ['my home', 'my domain']
             },
             'SRV': {
                 '_ldap._tcp': ['0 100 389 ldap'],
