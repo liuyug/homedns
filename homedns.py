@@ -26,20 +26,12 @@ __version__ = '0.1.0'
 logger = logging.getLogger(__name__)
 
 
-class DomainName(str):
-    def __getattr__(self, item):
-        if item == '@':
-            return self
-        else:
-            return DomainName(item + '.' + self)
-
-
 class Domain(object):
     """
     @:    current domain
     """
     def __init__(self, name):
-        self.name = DomainName(name)
+        self.name = name
         self.records = {}
 
     def __repr__(self):
@@ -103,7 +95,7 @@ class Domain(object):
         if subname == '@':
             dn = self.name
         else:
-            dn = getattr(self.name, subname)
+            dn = subname + '.' + self.name
         if dn not in self.records:
             self.records[dn] = []
         return dn
