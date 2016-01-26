@@ -3,6 +3,8 @@ HOMEDNS
 =========
 This is a tiny DNS server only for family used.
 
+Support python2 and python3.
+
 Feature
 =======
 1. DNS Record: A, AAAA, CNAME, NS, MX, TXT, SRV...
@@ -11,7 +13,6 @@ Feature
 
 TODO
 ====
-1. support many dns upstream server.
 
 Pack
 ------
