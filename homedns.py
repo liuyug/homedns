@@ -215,30 +215,46 @@ def lookup_local(request, reply):
                 rdata=r['rdata'],
             )
             reply.add_answer(answer)
+
+    logger.warn('\tLookup from LOCAL')
     return reply
 
 
 def lookup_upstream(request, reply):
-    for up in config['server']['upstreams']:
+    servers = config['server']['upstreams']
+    servers = sorted(servers, key=lambda x: -x[1])
+    for x in range(len(servers)):
+        server = servers[x][0]
         try:
-            if ':' in up:
-                ip, port = up.split(':')
+            if ':' in server:
+                ip, port = server.split(':')
                 port = int(port)
             else:
-                ip = up
+                ip = server
                 port = 53
             r_data = request.send(
                 ip, port,
                 timeout=config['server']['timeout'],
             )
         except Exception as err:
-            logger.fatal('\tLookup from %s:%s: %s' % (ip, port, err))
+            servers[x][1] -= 1
+            logger.fatal('\tLookup from %s:%s(%s): %s' % (
+                ip, port,
+                servers[x][1],
+                err
+            ))
             continue
+        servers[x][1] += 1
+        logger.warn('\tLookup from %s:%s(%s)' % (
+            ip, port,
+            servers[x][1],
+        ))
         r_reply = DNSRecord.parse(r_data)
         if r_reply.rr:
             for rr in r_reply.rr:
                 reply.add_answer(rr)
             break
+    config['server']['upstreams'] = servers
     return reply
 
 
@@ -282,7 +298,11 @@ def init_config(config_file):
         'protocols': ['udp'],
         'listen_ip': '127.0.0.1',
         'listen_port': 53,
-        'upstreams': ['114.114.114.114', '114.114.115.115'],
+        # server: (ip:port, priority)
+        'upstreams': [
+            ['114.114.114.114', 0],
+            ['114.114.115.115', 0],
+        ],
         'timeout': 10,
         # 'all', 'local' or 'upstream'
         'search': 'all',
