@@ -10,11 +10,14 @@ import binascii
 import logging
 import argparse
 import json
+import socket
+import struct
 try:
     import socketserver
 except:
     import SocketServer as socketserver
 
+import socks
 import netaddr
 import dnslib
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader
@@ -208,6 +211,62 @@ def lookup_local(request, reply):
     return reply
 
 
+def proxy_send(data, dest, port=53, tcp=False, timeout=None, ipv6=False,
+               proxy=None):
+    """
+        Send packet to nameserver and return response through proxy
+        proxy_type: SOCKS5, SOCKS4, HTTP
+    """
+    if ipv6:
+        inet = socket.AF_INET6
+    else:
+        inet = socket.AF_INET
+    if proxy and proxy['type'] in socks.PROXY_TYPES:
+        # many proxy servers only support TCP mode
+        tcp = True
+    if tcp:
+        if len(data) > 65535:
+            raise ValueError("Packet length too long: %d" % len(data))
+        data = struct.pack("!H", len(data)) + data
+        if proxy and proxy['type'] in socks.PROXY_TYPES:
+            sock = socks.socksocket(inet, socket.SOCK_STREAM)
+            sock.set_proxy(
+                socks.PROXY_TYPES[proxy['type']],
+                proxy['ip'],
+                proxy['port'],
+            )
+            logger.warn('\tProxy %(type)s://%(ip)s:%(port)s' % proxy)
+        else:
+            sock = socket.socket(inet, socket.SOCK_STREAM)
+        if timeout is not None:
+            sock.settimeout(timeout)
+        sock.connect((dest, port))
+        sock.sendall(data)
+        response = sock.recv(8192)
+        length = struct.unpack("!H", bytes(response[:2]))[0]
+        while len(response) - 2 < length:
+            response += sock.recv(8192)
+        sock.close()
+        response = response[2:]
+    else:
+        if proxy and proxy['type'] in socks.PROXY_TYPES:
+            sock = socks.socksocket(inet, socket.SOCK_STREAM)
+            sock.set_proxy(
+                socks.PROXY_TYPES[proxy['type']],
+                proxy['ip'],
+                proxy['port'],
+            )
+            logger.warn('\tProxy %(type)s://%(ip)s:%(port)s' % proxy)
+        else:
+            sock = socket.socket(inet, socket.SOCK_DGRAM)
+        if timeout is not None:
+            sock.settimeout(timeout)
+        sock.sendto(data, (dest, port))
+        response, server = sock.recvfrom(8192)
+        sock.close()
+    return response
+
+
 def lookup_upstream(request, reply):
     servers = config['server']['upstreams']
     servers = sorted(servers, key=lambda x: -x[1])
@@ -220,9 +279,11 @@ def lookup_upstream(request, reply):
             else:
                 ip = server
                 port = 53
-            r_data = request.send(
+            r_data = proxy_send(
+                request.pack(),
                 ip, port,
                 timeout=config['server']['timeout'],
+                proxy=config['server']['proxy'],
             )
         except Exception as err:
             servers[x][1] -= 1
@@ -295,6 +356,11 @@ def init_config(config_file):
         # 'all', 'local' or 'upstream'
         'search': 'all',
         'allowed_hosts': ['127.0.0.1'],
+        'proxy': {
+            'type': 'SOCKS5',
+            'ip': '127.0.0.1',
+            'port': 1080,
+        },
     }
     domain = [{
         'name': 'mylocal.home',
