@@ -6,10 +6,14 @@ import os.path
 import sys
 import time
 import threading
-import SocketServer
+import binascii
 import logging
 import argparse
 import json
+try:
+    import socketserver
+except:
+    import SocketServer as socketserver
 
 import netaddr
 import dnslib
@@ -143,7 +147,7 @@ class Domain(object):
         return r
 
 
-class BaseRequestHandler(SocketServer.BaseRequestHandler):
+class BaseRequestHandler(socketserver.BaseRequestHandler):
 
     def get_data(self):
         raise NotImplementedError
@@ -166,17 +170,17 @@ class BaseRequestHandler(SocketServer.BaseRequestHandler):
             return
         try:
             data = self.get_data()
-            logger.info('%s %s' % (len(data), data.encode('hex')))
+            logger.info('%s %s' % (len(data), binascii.b2a_hex(data)))
             self.send_data(dns_response(data))
         except Exception as err:
-            logger.fatal('send_data: %s' % err)
+            logger.fatal('send data: %s' % (err))
 
 
 class TCPRequestHandler(BaseRequestHandler):
 
     def get_data(self):
         data = self.request.recv(8192).strip()
-        sz = int(data[:2].encode('hex'), 16)
+        sz = int(binascii.b2a_hex(data[:2]), 16)
         if sz < len(data) - 2:
             raise Exception("Wrong size of TCP packet")
         elif sz > len(data) - 2:
@@ -184,7 +188,7 @@ class TCPRequestHandler(BaseRequestHandler):
         return data[2:]
 
     def send_data(self, data):
-        sz = hex(len(data))[2:].zfill(4).decode('hex')
+        sz = bytes(binascii.a2b_hex(hex(len(data))[2:].zfill(4)))
         return self.request.sendall(sz + data)
 
 
@@ -231,8 +235,10 @@ def lookup_upstream(request, reply):
             logger.fatal('\tLookup from %s:%s: %s' % (ip, port, err))
             continue
         r_reply = DNSRecord.parse(r_data)
-        for rr in r_reply.rr:
-            reply.add_answer(rr)
+        if r_reply.rr:
+            for rr in r_reply.rr:
+                reply.add_answer(rr)
+            break
     return reply
 
 
@@ -276,7 +282,7 @@ def init_config(config_file):
         'protocols': ['udp'],
         'listen_ip': '127.0.0.1',
         'listen_port': 53,
-        'upstreams': ['114.114.114.114'],
+        'upstreams': ['114.114.114.114', '114.114.115.115'],
         'timeout': 10,
         # 'all', 'local' or 'upstream'
         'search': 'all',
@@ -412,11 +418,11 @@ def run():
     servers = []
     if 'udp' in config['server']['protocols']:
         servers.append(
-            SocketServer.ThreadingUDPServer((ip, port), UDPRequestHandler)
+            socketserver.ThreadingUDPServer((ip, port), UDPRequestHandler)
         )
     if 'tcp' in config['server']['protocols']:
         servers.append(
-            SocketServer.ThreadingTCPServer((ip, port), TCPRequestHandler),
+            socketserver.ThreadingTCPServer((ip, port), TCPRequestHandler),
         )
 
     for s in servers:

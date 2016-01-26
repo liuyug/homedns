@@ -12,4 +12,10 @@ Feature
 TODO
 ====
 1. support many dns upstream server.
-2. allow access list
+
+Pack
+------
+::
+
+    pyinstaller --clean --noupx -w -F homedns.py
+
