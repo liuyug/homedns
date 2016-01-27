@@ -211,25 +211,17 @@ def lookup_local(request, reply):
     return reply
 
 
-def proxy_send(data, dest, port=53, tcp=False, timeout=None, ipv6=False,
-               proxy=None):
+def dnsproxy_send(data, dest, port=53, tcp=False, timeout=None, ipv6=False,
+                  proxy=None):
     """
         Send packet to nameserver and return response through proxy
         proxy_type: SOCKS5, SOCKS4, HTTP
+
+        Note:: many proxy server only support TCP mode.
     """
-    if ipv6:
-        inet = socket.AF_INET6
-    else:
-        inet = socket.AF_INET
-    if proxy and proxy['type'] in socks.PROXY_TYPES:
-        # many proxy servers only support TCP mode
-        tcp = True
-    if tcp:
-        if len(data) > 65535:
-            raise ValueError("Packet length too long: %d" % len(data))
-        data = struct.pack("!H", len(data)) + data
-        if proxy and proxy['type'] in socks.PROXY_TYPES:
-            sock = socks.socksocket(inet, socket.SOCK_STREAM)
+    def get_sock(inet, stype, proxy=None):
+        if proxy and proxy['enable']:
+            sock = socks.socksocket(inet, stype)
             sock.set_proxy(
                 socks.PROXY_TYPES[proxy['type']],
                 proxy['ip'],
@@ -237,7 +229,20 @@ def proxy_send(data, dest, port=53, tcp=False, timeout=None, ipv6=False,
             )
             logger.warn('\tProxy %(type)s://%(ip)s:%(port)s' % proxy)
         else:
-            sock = socket.socket(inet, socket.SOCK_STREAM)
+            sock = socket.socket(inet, stype)
+        return sock
+
+    if ipv6:
+        inet = socket.AF_INET6
+    else:
+        inet = socket.AF_INET
+    if proxy and proxy['enable']:
+        tcp = True
+    if tcp:
+        if len(data) > 65535:
+            raise ValueError("Packet length too long: %d" % len(data))
+        data = struct.pack("!H", len(data)) + data
+        sock = get_sock(inet, socket.SOCK_STREAM, proxy)
         if timeout is not None:
             sock.settimeout(timeout)
         sock.connect((dest, port))
@@ -249,16 +254,7 @@ def proxy_send(data, dest, port=53, tcp=False, timeout=None, ipv6=False,
         sock.close()
         response = response[2:]
     else:
-        if proxy and proxy['type'] in socks.PROXY_TYPES:
-            sock = socks.socksocket(inet, socket.SOCK_STREAM)
-            sock.set_proxy(
-                socks.PROXY_TYPES[proxy['type']],
-                proxy['ip'],
-                proxy['port'],
-            )
-            logger.warn('\tProxy %(type)s://%(ip)s:%(port)s' % proxy)
-        else:
-            sock = socket.socket(inet, socket.SOCK_DGRAM)
+        sock = get_sock(inet, socket.SOCK_DGRAM, proxy)
         if timeout is not None:
             sock.settimeout(timeout)
         sock.sendto(data, (dest, port))
@@ -279,11 +275,11 @@ def lookup_upstream(request, reply):
             else:
                 ip = server
                 port = 53
-            r_data = proxy_send(
+            r_data = dnsproxy_send(
                 request.pack(),
                 ip, port,
                 timeout=config['server']['timeout'],
-                proxy=config['server']['proxy'],
+                proxy=config['proxy'],
             )
         except Exception as err:
             servers[x][1] -= 1
@@ -356,14 +352,17 @@ def init_config(config_file):
         # 'all', 'local' or 'upstream'
         'search': 'all',
         'allowed_hosts': ['127.0.0.1'],
-        'proxy': {
-            'type': 'SOCKS5',
-            'ip': '127.0.0.1',
-            'port': 1080,
-        },
+    }
+    proxy = {
+        'enable': False,
+        # type: SOCKS5, SOCKS4 and HTTP
+        'type': 'SOCKS5',
+        'ip': '127.0.0.1',
+        'port': 1080,
     }
     domain = [{
         'name': 'mylocal.home',
+        'enable': True,
         'records': {
             'NS': ['ns1', 'ns2'],
             'MX': ['mail'],
@@ -419,6 +418,7 @@ def init_config(config_file):
         config = {
             'log': log,
             'server': server,
+            'proxy': proxy,
             'domain': domain,
         }
         json.dump(config, open(config_file, 'w'), indent=4)
@@ -434,6 +434,8 @@ def init_config(config_file):
 
     local_domains = []
     for domain in config['domain']:
+        if not domain['enable']:
+            continue
         ld = Domain(domain['name'])
         ld.create(domain['records'])
         local_domains.append(ld)
