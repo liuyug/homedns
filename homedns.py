@@ -3,9 +3,12 @@
 
 import datetime
 import os.path
-import sys
 import time
 import threading
+try:
+    from queue import Queue
+except:
+    from Queue import Queue
 import binascii
 import logging
 import argparse
@@ -162,7 +165,7 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
         try:
             data = self.get_data()
             logger.info('%s %s' % (len(data), binascii.b2a_hex(data)))
-            self.send_data(dns_response(data))
+            dns_response(self, data)
         except Exception as err:
             logger.fatal('send data: %s' % (err))
 
@@ -192,9 +195,14 @@ class UDPRequestHandler(BaseRequestHandler):
         return self.request[1].sendto(data, self.client_address)
 
 
-def lookup_local(request, reply):
+def lookup_local(handler, request):
     qn = request.q.qname
     qt = QTYPE[request.q.qtype]
+
+    reply = DNSRecord(
+        DNSHeader(id=request.header.id, qr=1, aa=1, ra=1),
+        q=request.q
+    )
 
     for domain in local_domains:
         rr_data = domain.search(qn, qt)
@@ -207,12 +215,22 @@ def lookup_local(request, reply):
             )
             reply.add_answer(answer)
 
-    logger.warn('\tLookup from LOCAL')
-    return reply
+    if reply.rr:
+        lines = []
+        for r in reply.rr:
+            rqn = r.rdata
+            rqt = QTYPE[r.rtype]
+            lines.append('\t\t%s(%s)' % (rqn, rqt))
+        logger.warn('\tFrom LOCAL return:\n%s' % '\n'.join(lines))
+        logger.info(reply)
+        handler.send_data(reply.pack())
+        return True
+    return False
 
 
-def dnsproxy_send(data, dest, port=53, tcp=False, timeout=None, ipv6=False,
-                  proxy=None):
+def do_lookup_upstream(data, dest, port=53,
+                       tcp=False, timeout=None, ipv6=False,
+                       proxy=None):
     """
         Send packet to nameserver and return response through proxy
         proxy_type: SOCKS5, SOCKS4, HTTP
@@ -263,47 +281,34 @@ def dnsproxy_send(data, dest, port=53, tcp=False, timeout=None, ipv6=False,
     return response
 
 
-def lookup_upstream(request, reply):
-    servers = config['server']['upstreams']
-    servers = sorted(servers, key=lambda x: -x[1])
-    for x in range(len(servers)):
-        server = servers[x][0]
+def lookup_upstream_worker(queue, ip, port=53, timeout=None, proxy=None):
+    while True:
+        handler, request = queue.get()
         try:
-            if ':' in server:
-                ip, port = server.split(':')
-                port = int(port)
-            else:
-                ip = server
-                port = 53
-            r_data = dnsproxy_send(
+            r_data = do_lookup_upstream(
                 request.pack(),
                 ip, port,
-                timeout=config['server']['timeout'],
-                proxy=config['proxy'],
+                timeout=timeout, proxy=proxy,
             )
+            reply = DNSRecord.parse(r_data)
+            if reply.rr:
+                lines = []
+                for r in reply.rr:
+                    rqn = r.rdata
+                    rqt = QTYPE[r.rtype]
+                    lines.append('\t\t%s(%s)' % (rqn, rqt))
+                logger.warn('\tFrom %s:%s return:\n%s' % (
+                    ip, port,
+                    '\n'.join(lines)
+                ))
+                logger.info(reply)
+                handler.send_data(reply.pack())
         except Exception as err:
-            servers[x][1] -= 1
-            logger.fatal('\tLookup from %s:%s(%s): %s' % (
-                ip, port,
-                servers[x][1],
-                err
-            ))
-            continue
-        servers[x][1] += 1
-        logger.warn('\tLookup from %s:%s(%s)' % (
-            ip, port,
-            servers[x][1],
-        ))
-        r_reply = DNSRecord.parse(r_data)
-        if r_reply.rr:
-            for rr in r_reply.rr:
-                reply.add_answer(rr)
-            break
-    config['server']['upstreams'] = servers
-    return reply
+            logger.fatal('\tLookup from %s:%s: %s' % (ip, port, err))
+        queue.task_done()
 
 
-def dns_response(data):
+def dns_response(handler, data):
     request = DNSRecord.parse(data)
 
     qn = request.q.qname
@@ -311,27 +316,12 @@ def dns_response(data):
     logger.warn('\tRequest: %s(%s)' % (qn, qt))
     logger.info(request)
 
-    reply = DNSRecord(
-        DNSHeader(id=request.header.id, qr=1, aa=1, ra=1),
-        q=request.q
-    )
-
+    found = False
     if config['server']['search'] in ['all', 'local']:
-        reply = lookup_local(request, reply)
-    if not reply.rr and config['server']['search'] in ['all', 'upstream']:
-        reply = lookup_upstream(request, reply)
-
-    logger.info('%s REPLY %s' % ('-' * 36, '-' * 37))
-    logger.info(reply)
-    if reply.rr:
-        for r in reply.rr:
-            rqn = r.rdata
-            rqt = QTYPE[r.rtype]
-            logger.warn('\tReturn : %s(%s)' % (rqn, rqt))
-    else:
-        logger.warn('\tReturn : N/A')
-
-    return reply.pack()
+        found = lookup_local(handler, request)
+    if not found and config['server']['search'] in ['all', 'upstream']:
+        for t, q in upstreams:
+            q.put((handler, request))
 
 
 def init_config(config_file):
@@ -343,10 +333,10 @@ def init_config(config_file):
         'protocols': ['udp'],
         'listen_ip': '127.0.0.1',
         'listen_port': 53,
-        # server: (ip:port, priority)
+        # server: ip:port
         'upstreams': [
-            ['114.114.114.114', 0],
-            ['114.114.115.115', 0],
+            '114.114.114.114',
+            '114.114.115.115',
         ],
         'timeout': 10,
         # 'all', 'local' or 'upstream'
@@ -412,6 +402,7 @@ def init_config(config_file):
     global config
     global local_domains
     global allowed_hosts
+    global upstreams
     if os.path.exists(config_file):
         config = json.load(open(config_file))
     else:
@@ -422,6 +413,27 @@ def init_config(config_file):
             'domain': domain,
         }
         json.dump(config, open(config_file, 'w'), indent=4)
+
+    upstreams = []
+    for up in config['server']['upstreams']:
+        if ':' in up:
+            ip, port = up.split(':')
+            port = int(port)
+        else:
+            ip = up
+            port = 53
+        q = Queue()
+        t = threading.Thread(
+            target=lookup_upstream_worker,
+            args=(q, ip, port),
+            kwargs={
+                'timeout': config['server']['timeout'],
+                'proxy': config['proxy'],
+            }
+        )
+        t.daemon = True
+        t.start()
+        upstreams.append((t, q))
 
     allowed_hosts = netaddr.IPSet()
     for hosts in config['server']['allowed_hosts']:
@@ -514,11 +526,8 @@ def run():
         ))
 
     try:
-        while 1:
+        while True:
             time.sleep(1)
-            sys.stderr.flush()
-            sys.stdout.flush()
-
     except KeyboardInterrupt:
         pass
     finally:
