@@ -26,7 +26,7 @@ import dnslib
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader
 
 
-__version__ = '0.1.4'
+__version__ = '0.1.5'
 
 
 logger = logging.getLogger(__name__)
@@ -254,7 +254,7 @@ def do_lookup_upstream(data, dest, port=53,
         inet = socket.AF_INET6
     else:
         inet = socket.AF_INET
-    if proxy and proxy['enable']:
+    if not tcp and proxy and proxy['enable']:
         tcp = True
     if tcp:
         if len(data) > 65535:
