@@ -8,7 +8,7 @@ Support python2 and python3.
 Feature
 =======
 1. DNS Record: A, AAAA, CNAME, NS, MX, TXT, SRV...
-#. proxy dns. To forward request to upstream dns server
+#. proxy dns. Forward request to upstream dns server with TCP or UDP.
 #. TCP and UDP connection
 #. config file based json format
 

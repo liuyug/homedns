@@ -281,14 +281,15 @@ def do_lookup_upstream(data, dest, port=53,
     return response
 
 
-def lookup_upstream_worker(queue, ip, port=53, timeout=None, proxy=None):
+def lookup_upstream_worker(queue, ip, port=53,
+                           tcp=False, timeout=None, proxy=None):
     while True:
         handler, request = queue.get()
         try:
             r_data = do_lookup_upstream(
                 request.pack(),
                 ip, port,
-                timeout=timeout, proxy=proxy,
+                tcp=tcp, timeout=timeout, proxy=proxy,
             )
             reply = DNSRecord.parse(r_data)
             if reply.rr:
@@ -334,6 +335,7 @@ def init_config(config_file):
         'listen_ip': '127.0.0.1',
         'listen_port': 53,
         # server: ip:port
+        'upstream_tcp': True,
         'upstreams': [
             '114.114.114.114',
             '114.114.115.115',
@@ -427,6 +429,7 @@ def init_config(config_file):
             target=lookup_upstream_worker,
             args=(q, ip, port),
             kwargs={
+                'tcp': config['server']['upstream_tcp'],
                 'timeout': config['server']['timeout'],
                 'proxy': config['proxy'],
             }
