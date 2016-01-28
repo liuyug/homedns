@@ -241,7 +241,7 @@ def do_lookup_upstream(data, dest, port=53,
         if proxy and proxy['enable']:
             sock = socks.socksocket(inet, stype)
             sock.set_proxy(
-                socks.PROXY_TYPES[proxy['type']],
+                socks.PROXY_TYPES[proxy['type'].upper()],
                 proxy['ip'],
                 proxy['port'],
             )
@@ -331,37 +331,56 @@ def init_config(config_file):
         'level': 30,
     }
     server = {
+        # local listen on 'tcp', 'udp'
         'protocols': ['udp'],
+        # local listen ip
         'listen_ip': '127.0.0.1',
+        # local listen port
         'listen_port': 53,
-        # server: ip:port
+        # connection method for upstream dn server
         'upstream_tcp': True,
+        # upstream dns server
+        # ip:port. port may be ignore. default is 53
         'upstreams': [
             '114.114.114.114',
             '114.114.115.115',
         ],
+        # connection timeout for upstream dns server or proxy server.
         'timeout': 10,
-        # 'all', 'local' or 'upstream'
+        # search domain from 'all', 'local' or 'upstream'
         'search': 'all',
+        # allowed hosts to access
+        # 192.168.1.0/24, 192.168.2.10-100, 192.168.3.*
         'allowed_hosts': ['127.0.0.1'],
     }
     proxy = {
+        # enable proxy server
         'enable': False,
-        # type: SOCKS5, SOCKS4 and HTTP
+        # proxy type: SOCKS5, SOCKS4 or HTTP
         'type': 'SOCKS5',
+        # proxy ip
         'ip': '127.0.0.1',
+        # proxy port
         'port': 1080,
     }
     domain = [{
+        # domain name
         'name': 'mylocal.home',
+        # enable to search the domain
         'enable': True,
+        # domain records
         'records': {
+            # dns NS record
             'NS': ['ns1', 'ns2'],
+            # dns MX record
             'MX': ['mail'],
+            # dns SOA record
             'SOA': {
+                # primary dns server
                 'mname': 'ns1',
-                'rname': 'mail',
-                'serial': 20160101,
+                # dns contact email address. '@' is replaced by '.'
+                'rname': 'admin',
+                'serial': 201601010001,
                 # 60 * 60 * 1
                 'refresh': 3600,
                 # 60 * 60 * 3
@@ -371,30 +390,35 @@ def init_config(config_file):
                 # 60 * 60 * 1
                 'minimum': 3600,
             },
+            # dns A record. ipv4
             'A': {
+                # '@' is current domain
                 '@': ['127.0.0.1'],
-                # MX and NS must be A record
+                # MX and NS domain name must be A record
                 'ns1': ['127.0.0.1'],
                 'ns2': ['127.0.0.1'],
                 'mail': ['127.0.0.1'],
             },
+            # dns A record. ipv6
             'AAAA': {
                 '@': ['::1'],
-                # MX and NS must be A record
                 'ns1': ['::1'],
                 'ns2': ['::1'],
                 'mail': ['::1'],
             },
+            # dns CNAME record. alias domain.
             'CNAME': {
                 'www': ['@'],
                 'ldap': ['www'],
                 'kms': ['www'],
             },
+            # dns TXT record
             'TXT': {
                 'fun': ['happy!'],
                 'look': ['where?'],
-                '@': ['my home', 'my domain']
+                '@': ['my home', 'my domain'],
             },
+            # dns SRV record
             'SRV': {
                 '_ldap._tcp': ['0 100 389 ldap'],
                 '_vlmcs._tcp': ['0 100 1688 kms'],
