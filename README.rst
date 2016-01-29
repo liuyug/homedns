@@ -12,6 +12,15 @@ Feature
 #. TCP and UDP connection
 #. config file based json format
 
+hosts rules
+============
+Default hosts filename is 'hosts.rules'. The format is the same as system hosts.
+
+example:
+
+    127.0.0.1   localhost
+
+
 TODO
 ====
 

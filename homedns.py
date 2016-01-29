@@ -141,6 +141,52 @@ class Domain(object):
         return r
 
 
+class HostDomain(Domain):
+    """
+    transfer hosts file into special domain
+    """
+    def create(self, obj):
+        """ All are A or AAAA record in hosts file"""
+        for line in iter(obj.readline, ''):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            ip, name = line.split()
+            dn = self.get_subdomain(name)
+            if ':' in ip:
+                self.records[dn] += [dnslib.AAAA(ip)]
+            else:
+                self.records[dn] += [dnslib.A(ip)]
+
+    def get_subdomain(self, subname):
+        dn = subname
+        if dn not in self.records:
+            self.records[dn] = []
+        return dn
+
+    def search(self, qn, qt):
+        """
+        qn: query domain name, DNSLabel
+        qt: query domain type, default 'A' and 'AAAA'
+        """
+        r = []
+        if qt not in ['A', 'AAAA']:
+            return r
+        for name, rrs in self.records.items():
+            if name == qn:
+                for rdata in rrs:
+                    rqt = rdata.__class__.__name__
+                    if qt in ['*', rqt]:
+                        r.append({
+                            'type': rqt,
+                            'rdata': rdata,
+                        })
+                        logger.debug('Find: %s => %s(%s)' % (
+                            name, rqt, rdata
+                        ))
+        return r
+
+
 class BaseRequestHandler(socketserver.BaseRequestHandler):
 
     def get_data(self):
@@ -380,7 +426,7 @@ def init_config(config_file):
                 'mname': 'ns1',
                 # dns contact email address. '@' is replaced by '.'
                 'rname': 'admin',
-                'serial': 201601010001,
+                'serial': 20160101,
                 # 60 * 60 * 1
                 'refresh': 3600,
                 # 60 * 60 * 3
@@ -439,6 +485,7 @@ def init_config(config_file):
             'domain': domain,
         }
         json.dump(config, open(config_file, 'w'), indent=4)
+    config_dir = os.path.dirname(config_file)
 
     upstreams = []
     for up in config['server']['upstreams']:
@@ -478,6 +525,11 @@ def init_config(config_file):
         ld = Domain(domain['name'])
         ld.create(domain['records'])
         local_domains.append(ld)
+    hosts_file = os.path.join(config_dir, 'hosts.rules')
+    if os.path.exists(hosts_file):
+        host = HostDomain('hosts')
+        host.create(open(hosts_file))
+        local_domains.append(host)
     return config
 
 
