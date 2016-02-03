@@ -137,7 +137,8 @@ def do_lookup_upstream(data, dest, port=53,
 
         Note:: many proxy server only support TCP mode.
     """
-    def get_sock(inet, stype, proxy=None):
+    def get_sock(inet, tcp, proxy=None):
+        stype = socket.SOCK_STREAM if tcp else socket.SOCK_DGRAM
         if proxy and proxy['enable']:
             sock = socks.socksocket(inet, stype)
             sock.set_proxy(
@@ -145,24 +146,31 @@ def do_lookup_upstream(data, dest, port=53,
                 proxy['ip'],
                 proxy['port'],
             )
-            message = '\tForward to server %s:%s' % (dest, port)
-            message += ' with proxy %(type)s://%(ip)s:%(port)s' % proxy
+            message = '\tForward to server %s:%s with TCP mode' % (dest, port)
+            message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
             logger.warn(message)
         else:
             sock = socket.socket(inet, stype)
+            message = '\tForward to server %s:%s with %s mode' % (
+                dest, port,
+                'TCP' if tcp else 'UDP',
+            )
+            logger.warn(message)
         return sock
 
     if ipv6:
         inet = socket.AF_INET6
     else:
         inet = socket.AF_INET
+
+    # force TCP mode when enable proxy
     if not tcp and proxy and proxy['enable']:
         tcp = True
+    sock = get_sock(inet, tcp, proxy)
     if tcp:
         if len(data) > 65535:
             raise ValueError("Packet length too long: %d" % len(data))
         data = struct.pack("!H", len(data)) + data
-        sock = get_sock(inet, socket.SOCK_STREAM, proxy)
         if timeout is not None:
             sock.settimeout(timeout)
         sock.connect((dest, port))
@@ -174,7 +182,6 @@ def do_lookup_upstream(data, dest, port=53,
         sock.close()
         response = response[2:]
     else:
-        sock = get_sock(inet, socket.SOCK_DGRAM, proxy)
         if timeout is not None:
             sock.settimeout(timeout)
         sock.sendto(data, (dest, port))

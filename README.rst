@@ -5,6 +5,10 @@ This is a tiny DNS server only for family used.
 
 Support python2 and python3.
 
+.. note::
+
+    Use TCP connection when proxy enable
+
 Feature
 =======
 1. DNS Record: A, AAAA, CNAME, NS, MX, TXT, SRV...

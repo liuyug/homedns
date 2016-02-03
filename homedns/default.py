@@ -41,14 +41,14 @@ smartdns = {
         {
             'ip': '114.114.114.114',
             'port': 53,
-            'tcp': True,
+            'tcp': False,
             'timeout': 5,
             'type': 'white',
         },
         {
             'ip': '114.114.115.115',
             'port': 53,
-            'tcp': True,
+            'tcp': False,
             'timeout': 5,
             'type': 'white',
         },
