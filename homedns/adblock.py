@@ -20,10 +20,10 @@ ABTYPE = AdblockType({
 
 class Adblock(object):
     def __init__(self, obj):
-        if isinstance(obj, file):
-            fobj = obj
-        else:
+        if isinstance(obj, str):
             fobj = open(obj)
+        else:
+            fobj = obj
         self.blacklist = set()
         self.whitelist = set()
         for line in iter(fobj.readline, ''):
