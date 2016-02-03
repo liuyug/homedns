@@ -383,9 +383,8 @@ def run():
         )
 
     logger.debug('Config: %s', config)
-    logger.debug('Domain Record:')
     for domain in local_domains:
-        logger.debug(domain)
+        logger.debug('Domain "%s" records:' % domain)
         domain.output_records(logger.debug)
 
     logger.error("Starting nameserver...")

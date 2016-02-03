@@ -27,7 +27,6 @@ example:
 
 TODO
 ====
-+.  IPv6 reverse DNS address
 
 Pack
 ------

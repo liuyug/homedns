@@ -5,6 +5,7 @@
 
 import logging
 
+import netaddr
 import dnslib
 
 
@@ -16,7 +17,7 @@ class Domain(object):
     @:    current domain
     """
     def __init__(self, name):
-        self.name = name
+        self.name = name + '.'
         self.ptr_records = {}
         self.records = {}
 
@@ -32,7 +33,7 @@ class Domain(object):
     def create(self, data):
         for typ, records in data.items():
             if typ in ['SOA']:
-                dn = self.get_subdomain()
+                dn = self.get_subdomain('@')
                 self.records[dn] += [getattr(dnslib, typ)(
                     mname=self.get_subdomain(records['mname']),
                     rname=self.get_subdomain(records['rname']),
@@ -45,7 +46,7 @@ class Domain(object):
                     )
                 )]
             elif typ in ['NS', 'MX']:
-                dn = self.get_subdomain()
+                dn = self.get_subdomain('@')
                 self.records[dn] += [
                     getattr(dnslib, typ)(self.get_subdomain(v)) for v in records
                 ]
@@ -55,7 +56,7 @@ class Domain(object):
                     for v in value:
                         self.records[dn] += [getattr(dnslib, typ)(v)]
                         # add ptr
-                        ptr_dn = self.get_ptrdomain(v, ip6=typ == 'AAAA')
+                        ptr_dn = self.get_ptrdomain(v)
                         self.ptr_records[ptr_dn] += [
                             dnslib.PTR(self.get_subdomain(name))
                         ]
@@ -89,7 +90,7 @@ class Domain(object):
             else:
                 logger.warn('DNS Record %s(%s) need to be handled...' % (typ, name))
 
-    def get_subdomain(self, subname='@'):
+    def get_subdomain(self, subname):
         if subname == '@':
             dn = self.name
         else:
@@ -98,14 +99,9 @@ class Domain(object):
             self.records[dn] = []
         return dn
 
-    def get_ptrdomain(self, ip, ip6=False):
-        # TODO: ipv6 reverse address
-        if ip6:
-            ptr_suffix = 'ip6.arpa'
-            dn = '.'.join(ip.split('.')[::-1] + [ptr_suffix])
-        else:
-            ptr_suffix = 'in-addr.arpa'
-            dn = '.'.join(ip.split('.')[::-1] + [ptr_suffix])
+    def get_ptrdomain(self, ip):
+        ipaddr = netaddr.IPAddress(ip)
+        dn = ipaddr.reverse_dns
         if dn not in self.ptr_records:
             self.ptr_records[dn] = []
         return dn
@@ -125,10 +121,7 @@ class Domain(object):
             ])))
 
     def isPtrdomain(self, qn):
-        for ptr in self.ptr_records.keys():
-            if qn.matchSuffix(ptr):
-                return True
-        return False
+        return str(qn) in self.ptr_records
 
     def isSubdomain(self, qn):
         return qn.matchSuffix(self.get_subdomain('@'))
@@ -152,7 +145,7 @@ class Domain(object):
                         })
             if not r:
                 rdata = dnslib.PTR(
-                    '-'.join(str(qn).split('.')[:4][::-1]) +
+                    '-'.join(str(qn).split('.')[:-3][::-1]) +
                     '.' +
                     self.get_subdomain('dynamic')
                 )
@@ -202,14 +195,14 @@ class HostDomain(Domain):
             else:
                 self.records[dn] += [dnslib.A(ip)]
 
-    def get_subdomain(self, subname='@'):
-        dn = subname
+    def get_subdomain(self, subname):
+        dn = subname + '.'
         if dn not in self.records:
             self.records[dn] = []
         return dn
 
     def isSubdomain(self, qn):
-        return str(qn).rstrip('.') in self.records
+        return str(qn) in self.records
 
     def search(self, qn, qt):
         """
