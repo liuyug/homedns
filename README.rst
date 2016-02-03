@@ -32,7 +32,7 @@ Pack
 ------
 ::
 
-    pyinstaller --clean --noupx -c -F homedns.py
+    pyinstaller --clean --noupx -c -p homedns -F homedns.py
 
 Sample
 =======
