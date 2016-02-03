@@ -15,6 +15,7 @@ import argparse
 import json
 import socket
 import struct
+import traceback
 try:
     import socketserver
 except:
@@ -24,7 +25,7 @@ import socks
 import netaddr
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader
 
-from .domain import Domain
+from .domain import Domain, HostDomain
 from .adblock import Adblock, ABTYPE
 
 __version__ = '0.1.5'
@@ -59,6 +60,7 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
             logger.info('%s %s' % (len(data), binascii.b2a_hex(data)))
             dns_response(self, data)
         except Exception as err:
+            traceback.print_exc()
             logger.fatal('send data: %s' % (err))
 
 
@@ -246,7 +248,6 @@ def lookup_upstream_worker(queue, server, proxy=None):
                 handler.send_data(reply.pack())
         except Exception as err:
             if logger.isEnabledFor(logging.DEBUG):
-                import traceback
                 traceback.print_exc()
             logger.fatal('\tError when lookup from %s:%s: %s' % (
                 server['ip'], server['port'],
@@ -288,12 +289,14 @@ def init_config(config_file):
             'domain': default.domain,
         }
         json.dump(config, open(config_file, 'w'), indent=4)
+    config_dir = os.path.dirname(config_file)
 
     bw_list = []
     if config['smartdns']['enable']:
         for rule in config['smartdns']['rules']:
-            if os.path.exists(rule):
-                ab = Adblock(rule)
+            rule_file = os.path.join(config_dir, rule)
+            if os.path.exists(rule_file):
+                ab = Adblock(rule_file)
                 bw_list.append(ab)
 
     upstreams = []
@@ -326,6 +329,12 @@ def init_config(config_file):
         ld = Domain(domain['name'])
         ld.create(domain['records'])
         local_domains.append(ld)
+    hosts_file = os.path.join(config_dir, 'hosts')
+    if os.path.exists(hosts_file):
+        host = HostDomain('hosts')
+        host.create(open(hosts_file))
+        local_domains.append(host)
+
     return config
 
 

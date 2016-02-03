@@ -131,10 +131,10 @@ class Domain(object):
         return False
 
     def isSubdomain(self, qn):
-        return qn.matchSuffix(self.get_subdomain())
+        return qn.matchSuffix(self.get_subdomain('@'))
 
     def inDomain(self, qn):
-        return qn.matchSuffix(self.get_subdomain()) or self.isPtrdomain(qn)
+        return self.isSubdomain(qn) or self.isPtrdomain(qn)
 
     def search(self, qn, qt):
         """
@@ -182,4 +182,53 @@ class Domain(object):
                                 name, rqt, rdata
                             ))
                             r += self.search(rdata.label, qt)
+        return r
+
+
+class HostDomain(Domain):
+    """
+    transfer hosts file into special domain
+    """
+    def create(self, obj):
+        """ All are A or AAAA record in hosts file"""
+        for line in iter(obj.readline, ''):
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            ip, name = line.split()
+            dn = self.get_subdomain(name)
+            if ':' in ip:
+                self.records[dn] += [dnslib.AAAA(ip)]
+            else:
+                self.records[dn] += [dnslib.A(ip)]
+
+    def get_subdomain(self, subname='@'):
+        dn = subname
+        if dn not in self.records:
+            self.records[dn] = []
+        return dn
+
+    def isSubdomain(self, qn):
+        return str(qn).rstrip('.') in self.records
+
+    def search(self, qn, qt):
+        """
+        qn: query domain name, DNSLabel
+        qt: query domain type, default 'A' and 'AAAA'
+        """
+        r = []
+        if qt not in ['A', 'AAAA']:
+            return r
+        for name, rrs in self.records.items():
+            if name == qn:
+                for rdata in rrs:
+                    rqt = rdata.__class__.__name__
+                    if qt in ['*', rqt]:
+                        r.append({
+                            'type': rqt,
+                            'rdata': rdata,
+                        })
+                        logger.debug('Find: %s => %s(%s)' % (
+                            name, rqt, rdata
+                        ))
         return r

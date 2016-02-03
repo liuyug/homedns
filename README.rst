@@ -14,7 +14,7 @@ Feature
 
 hosts rules
 ============
-Default hosts filename is 'hosts.rules'. The format is the same as system hosts.
+Default hosts filename is 'hosts'. The format is the same as system hosts.
 
 example:
 
