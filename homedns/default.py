@@ -20,12 +20,7 @@ server = {
     'allowed_hosts': ['127.0.0.1'],
 }
 smartdns = {
-    # If enable is Ture
-    # forward DNS request through proxy by rules
-    # or
-    # forward all request to every server without proxy
-    'enable': True,
-    'rules': ['customs.rules'],
+    'rules': ['black', 'default'],
     'proxy': {
         # proxy type: SOCKS5, SOCKS4 or HTTP
         'type': 'SOCKS5',
@@ -33,38 +28,36 @@ smartdns = {
         'ip': '127.0.0.1',
         # proxy port
         'port': 1080,
-        # ignore if smartdns enable is True
-        'enable': False,
     },
     # upstream dns server
     'upstreams': [
         {
             'ip': '114.114.114.114',
             'port': 53,
-            'tcp': False,
             'timeout': 5,
-            'type': 'white',
+            'rule': 'default',
+            'proxy': False,
         },
         {
             'ip': '114.114.115.115',
             'port': 53,
-            'tcp': False,
             'timeout': 5,
-            'type': 'white',
+            'rule': 'default',
+            'proxy': False,
         },
         {
             'ip': '8.8.8.8',
             'port': 53,
-            'tcp': True,
             'timeout': 5,
-            'type': 'black',
+            'rule': 'black',
+            'proxy': True,
         },
         {
             'ip': '8.8.4.4',
             'port': 53,
-            'tcp': True,
             'timeout': 5,
-            'type': 'black',
+            'rule': 'black',
+            'proxy': True,
         },
     ],
 }

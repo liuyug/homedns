@@ -16,6 +16,7 @@ import json
 import socket
 import struct
 import traceback
+from collections import OrderedDict
 try:
     import socketserver
 except:
@@ -26,7 +27,7 @@ import netaddr
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader
 
 from .domain import Domain, HostDomain
-from .adblock import Adblock, ABTYPE
+from .adblock import Adblock
 
 __version__ = '0.1.8'
 
@@ -139,7 +140,7 @@ def do_lookup_upstream(data, dest, port=53,
     """
     def get_sock(inet, tcp, proxy=None):
         stype = socket.SOCK_STREAM if tcp else socket.SOCK_DGRAM
-        if proxy and proxy['enable']:
+        if tcp and proxy:
             sock = socks.socksocket(inet, stype)
             sock.set_proxy(
                 socks.PROXY_TYPES[proxy['type'].upper()],
@@ -163,9 +164,6 @@ def do_lookup_upstream(data, dest, port=53,
     else:
         inet = socket.AF_INET
 
-    # force TCP mode when enable proxy
-    if not tcp and proxy and proxy['enable']:
-        tcp = True
     sock = get_sock(inet, tcp, proxy)
     if tcp:
         if len(data) > 65535:
@@ -192,55 +190,20 @@ def do_lookup_upstream(data, dest, port=53,
 
 def lookup_upstream_worker(queue, server, proxy=None):
     """
-    If smartdns enable
-    forward request to dns server through proxy by rule
-    or
-    forward request to all dns servers
+    use TCP mode when proxy enable
     """
     while True:
         handler, request = queue.get()
         try:
-            if config['smartdns']['enable']:
-                qn = str(request.q.qname).rstrip('.')
-                qn_type = ABTYPE['unknown']
-                for bw in bw_list:
-                    qn_type = bw.inList(qn)
-                    if qn_type != ABTYPE['unknown']:
-                        break
-
-                smart_proxy = proxy.copy()
-                if qn_type == ABTYPE[server['type']] or \
-                        (qn_type == ABTYPE['unknown'] and
-                         ABTYPE[server['type']] == ABTYPE['white']):
-                    smart_proxy['enable'] = qn_type == ABTYPE['black']
-                    logger.warn('\tRequest "%s" is in "%s" list.' % (
-                        qn,
-                        ABTYPE.get_desc(qn_type),
-                    ))
-                    r_data = do_lookup_upstream(
-                        request.pack(),
-                        server['ip'],
-                        server['port'],
-                        tcp=server['tcp'],
-                        timeout=server['timeout'],
-                        proxy=smart_proxy,
-                    )
-                    reply = DNSRecord.parse(r_data)
-                else:
-                    reply = DNSRecord(
-                        DNSHeader(id=request.header.id, qr=1, aa=1, ra=1),
-                        q=request.q
-                    )
-            else:
-                r_data = do_lookup_upstream(
-                    request.pack(),
-                    server['ip'],
-                    server['port'],
-                    tcp=server['tcp'],
-                    timeout=server['timeout'],
-                    proxy=proxy,
-                )
-                reply = DNSRecord.parse(r_data)
+            r_data = do_lookup_upstream(
+                request.pack(),
+                server['ip'],
+                server['port'],
+                tcp=server['proxy'],
+                timeout=server['timeout'],
+                proxy=proxy,
+            )
+            reply = DNSRecord.parse(r_data)
             if reply.rr:
                 lines = []
                 for r in reply.rr:
@@ -275,8 +238,13 @@ def dns_response(handler, data):
     if config['server']['search'] in ['all', 'local']:
         found = lookup_local(handler, request)
     if not found and config['server']['search'] in ['all', 'upstream']:
-        for t, q in upstreams:
-            q.put((handler, request))
+        qn2 = str(qn).rstrip('.')
+        for name, param in rules.items():
+            if param['rule'].isBlack(qn2):
+                logger.warn('\tRequest(%s) is in "%s" list.' % (qn, name))
+                for t, q in param['upstreams']:
+                    q.put((handler, request))
+                break
 
 
 def init_config(config_file):
@@ -284,8 +252,7 @@ def init_config(config_file):
     global config
     global local_domains
     global allowed_hosts
-    global upstreams
-    global bw_list
+    global rules
     if os.path.exists(config_file):
         config = json.load(open(config_file))
     else:
@@ -298,27 +265,30 @@ def init_config(config_file):
         json.dump(config, open(config_file, 'w'), indent=4)
     config_dir = os.path.dirname(config_file)
 
-    bw_list = []
-    if config['smartdns']['enable']:
-        for rule in config['smartdns']['rules']:
-            rule_file = os.path.join(config_dir, rule)
-            if os.path.exists(rule_file):
-                ab = Adblock(rule_file)
-                bw_list.append(ab)
-
-    upstreams = []
-    for upstream in config['smartdns']['upstreams']:
-        q = Queue()
-        t = threading.Thread(
-            target=lookup_upstream_worker,
-            args=(q, upstream),
-            kwargs={
-                'proxy': config['smartdns']['proxy'],
+    rules = OrderedDict()
+    for name in config['smartdns']['rules']:
+        rule_file = os.path.join(config_dir, name + '.rules')
+        if os.path.exists(rule_file):
+            ab = Adblock(open(rule_file))
+            rules[name] = {
+                'rule': ab,
+                'upstreams': [],
             }
-        )
-        t.daemon = True
-        t.start()
-        upstreams.append((t, q))
+
+    proxy = config['smartdns']['proxy']
+    for upstream in config['smartdns']['upstreams']:
+        if upstream['rule'] in rules:
+            q = Queue()
+            t = threading.Thread(
+                target=lookup_upstream_worker,
+                args=(q, upstream),
+                kwargs={
+                    'proxy': proxy if upstream['proxy'] else None
+                }
+            )
+            t.daemon = True
+            t.start()
+            rules[upstream['rule']]['upstreams'].append((t, q))
 
     allowed_hosts = netaddr.IPSet()
     for hosts in config['server']['allowed_hosts']:

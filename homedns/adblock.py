@@ -19,11 +19,7 @@ ABTYPE = AdblockType({
 
 
 class Adblock(object):
-    def __init__(self, obj):
-        if isinstance(obj, str):
-            fobj = open(obj)
-        else:
-            fobj = obj
+    def __init__(self, fobj):
         self.blacklist = set()
         self.whitelist = set()
         for line in iter(fobj.readline, ''):
@@ -56,7 +52,9 @@ class Adblock(object):
 
     def _inList(self, domain_list, host):
         for domain in domain_list:
-            if host[-len(domain):] == domain:
+            if domain == '*':
+                return True
+            elif host[-len(domain):] == domain:
                 return True
         return False
 
