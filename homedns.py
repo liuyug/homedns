@@ -1,30 +1,10 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-import datetime
-import os.path
-import time
-import threading
-try:
-    from queue import Queue
-except:
-    from Queue import Queue
-import binascii
-import logging
-import argparse
-import json
-import socket
-import struct
-try:
-    import socketserver
-except:
-    import SocketServer as socketserver
 
-import socks
-import netaddr
-import dnslib
-from dnslib import RR, QTYPE, DNSRecord, DNSHeader
+from homedns import run
 
+<<<<<<< HEAD
 
 __version__ = '0.1.5'
 
@@ -615,3 +595,6 @@ def run():
 
 if __name__ == '__main__':
     run()
+=======
+run()
+>>>>>>> smart_dns_proxy
