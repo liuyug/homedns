@@ -314,9 +314,9 @@ def init_config(config_file):
         ld = Domain(domain['name'])
         ld.create(domain['records'])
         local_domains.append(ld)
-    hosts_file = os.path.join(config_dir, 'hosts')
+    hosts_file = os.path.join(config_dir, 'hosts.homedns')
     if os.path.exists(hosts_file):
-        host = HostDomain('hosts')
+        host = HostDomain('home.dns')
         host.create(open(hosts_file))
         local_domains.append(host)
 
