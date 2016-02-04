@@ -240,7 +240,7 @@ def dns_response(handler, data):
     if not found and config['server']['search'] in ['all', 'upstream']:
         qn2 = str(qn).rstrip('.')
         for name, param in rules.items():
-            if param['rule'].isBlack(qn2):
+            if param['rule'].isBlock(qn2):
                 logger.warn('\tRequest(%s) is in "%s" list.' % (qn, name))
                 for t, q in param['upstreams']:
                     q.put((handler, request))

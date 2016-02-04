@@ -4,20 +4,6 @@
 # generate domain list from adblock rules.
 
 
-class AdblockType(dict):
-    def get_desc(self, vv):
-        for k, v in self.items():
-            if v == vv:
-                return k.upper()
-
-
-ABTYPE = AdblockType({
-    'white': 1,
-    'black': -1,
-    'unknown': 0,
-})
-
-
 class Adblock(object):
     def __init__(self, fobj):
         self.blacklist = set()
@@ -52,24 +38,18 @@ class Adblock(object):
 
     def _inList(self, domain_list, host):
         for domain in domain_list:
-            if domain == '*':
-                return True
-            elif host[-len(domain):] == domain:
+            if domain == '*' or host[-len(domain):] == domain:
                 return True
         return False
 
-    def inList(self, host):
-        if self._inList(self.whitelist, host):
-            return ABTYPE['white']
-        elif self._inList(self.blacklist, host):
-            return ABTYPE['black']
-        return ABTYPE['unknown']
+    def isBlock(self, host):
+        return not self.isWhite(host) and self.isBlack(host)
 
     def isWhite(self, host):
-        return self.inList(host) == ABTYPE['white']
+        return self._inList(self.whitelist, host)
 
     def isBlack(self, host):
-        return self.inList(host) == ABTYPE['black']
+        return self._inList(self.blacklist, host)
 
 
 if __name__ == '__main__':
