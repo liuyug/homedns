@@ -24,9 +24,6 @@ class Domain(object):
     def __repr__(self):
         return '<Domain: %s>' % self.name
 
-    def __str__(self):
-        return '%s' % self.name
-
     def __bool__(self):
         return bool(self.records)
 
@@ -196,7 +193,10 @@ class HostDomain(Domain):
                 self.records[dn] += [dnslib.A(ip)]
 
     def get_subdomain(self, subname):
-        dn = subname + '.'
+        if subname == '@':
+            dn = self.name
+        else:
+            dn = subname + '.'
         if dn not in self.records:
             self.records[dn] = []
         return dn

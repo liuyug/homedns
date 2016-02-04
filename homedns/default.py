@@ -16,11 +16,13 @@ server = {
     # search domain from 'all', 'local' or 'upstream'
     'search': 'all',
     # allowed hosts to access
-    # 192.168.1.0/24, 192.168.2.10-100, 192.168.3.*
+    # 192.168.1.0/24, 192.168.2.10-100, 192.168.3.*, 192.168.*.*
     'allowed_hosts': ['127.0.0.1'],
 }
 smartdns = {
+    # match rule by order in list.
     'rules': ['black', 'default'],
+    'hack_srv': ['_ldap._tcp'],
     'proxy': {
         # proxy type: SOCKS5, SOCKS4 or HTTP
         'type': 'SOCKS5',

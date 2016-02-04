@@ -24,7 +24,7 @@ except:
 
 import socks
 import netaddr
-from dnslib import RR, QTYPE, DNSRecord, DNSHeader
+from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 
 from .domain import Domain, HostDomain
 from .adblock import Adblock
@@ -91,7 +91,7 @@ class UDPRequestHandler(BaseRequestHandler):
 
 
 def lookup_local(handler, request):
-    qn = request.q.qname
+    qn2 = qn = request.q.qname
     qt = QTYPE[request.q.qtype]
 
     reply = DNSRecord(
@@ -101,18 +101,26 @@ def lookup_local(handler, request):
 
     is_local = False
     for domain in local_domains:
-        if not domain.inDomain(qn):
-            continue
-        is_local = True
-        rr_data = domain.search(qn, qt)
-        for r in rr_data:
-            answer = RR(
-                rname=qn,
-                rtype=getattr(QTYPE, r['type']),
-                rclass=1, ttl=60 * 5,
-                rdata=r['rdata'],
-            )
-            reply.add_answer(answer)
+        if config['smartdns']['hack_srv'] and qt == 'SRV' and \
+                not domain.inDomain(qn2):
+            r_srv = '.'.join(qn.label[:2])
+            if r_srv in config['smartdns']['hack_srv']:
+                qn2 = DNSLabel(domain.get_subdomain('@')).add(r_srv)
+                logger.warn('\tChange SRV request to %s from %s' % (qn2, qn))
+
+        if domain.inDomain(qn2):
+            is_local = True
+            rr_data = domain.search(qn2, qt)
+            for r in rr_data:
+                answer = RR(
+                    rname=qn,
+                    rtype=getattr(QTYPE, r['type']),
+                    rclass=1, ttl=60 * 5,
+                    rdata=r['rdata'],
+                )
+                reply.add_answer(answer)
+            if reply.rr:
+                break
 
     if is_local:
         if reply.rr:
