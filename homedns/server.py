@@ -29,7 +29,7 @@ from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 from .domain import Domain, HostDomain
 from .adblock import Adblock
 
-__version__ = '0.1.8'
+__version__ = '0.1.10'
 
 
 logger = logging.getLogger(__name__)
