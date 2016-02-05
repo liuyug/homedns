@@ -103,8 +103,8 @@ def lookup_local(handler, request):
     for domain in local_domains:
         if config['smartdns']['hack_srv'] and qt == 'SRV' and \
                 not domain.inDomain(qn2):
-            r_srv = '.'.join(qn.label[:2])
-            if r_srv in config['smartdns']['hack_srv']:
+            r_srv = b'.'.join(qn.label[:2])
+            if r_srv.decode() in config['smartdns']['hack_srv']:
                 qn2 = DNSLabel(domain.get_subdomain('@')).add(r_srv)
                 logger.warn('\tChange SRV request to %s from %s' % (qn2, qn))
 
@@ -256,7 +256,7 @@ def dns_response(handler, data):
 
 
 def init_config(config_file):
-    import default
+    from . import default
     global config
     global local_domains
     global allowed_hosts
