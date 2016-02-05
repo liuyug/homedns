@@ -243,9 +243,9 @@ def dns_response(handler, data):
     logger.info(request)
 
     found = False
-    if config['server']['search'] in ['all', 'local']:
+    if 'local' in config['server']['search']:
         found = lookup_local(handler, request)
-    if not found and config['server']['search'] in ['all', 'upstream']:
+    if not found and 'upstream' in config['server']['search']:
         qn2 = str(qn).rstrip('.')
         for name, param in rules.items():
             if param['rule'].isBlock(qn2):

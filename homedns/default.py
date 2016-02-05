@@ -13,8 +13,8 @@ server = {
     'listen_ip': '127.0.0.1',
     # local listen port
     'listen_port': 53,
-    # search domain from 'all', 'local' or 'upstream'
-    'search': 'all',
+    # search domain from 'local' or 'upstream'
+    'search': ['local', 'upstream'],
     # allowed hosts to access
     # 192.168.1.0/24, 192.168.2.10-100, 192.168.3.*, 192.168.*.*
     'allowed_hosts': ['127.0.0.1'],
