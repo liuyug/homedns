@@ -3,6 +3,8 @@
 
 cls
 set SERVER=%1
+set OLD_PROMPT=%PROMPT%
+set PROMPT=$G
 
 echo ===============
 echo HomeDNS testing
@@ -58,3 +60,6 @@ echo ----------------------
 echo will be change to local domain
 echo on
 nslookup -type=srv _ldap._tcp.cisco.com %SERVER%
+
+@echo off
+set PROMPT=%OLD_PROMPT%

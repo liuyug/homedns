@@ -11,10 +11,12 @@ Support python2 and python3.
 
 Feature
 =======
-1. DNS Record: A, AAAA, CNAME, NS, MX, TXT, SRV...
-#. proxy dns. Forward request to upstream dns server with TCP or UDP.
-#. TCP and UDP connection
-#. config file based json format
+1. Local FAKE domain. DNS Record: A, AAAA, CNAME, NS, MX, TXT, SRV...
+#. Forward DNS request to upstream DNS server with TCP or UDP mode.
+#. Proxy support. Connect to upstream server through PROXY server
+#. Support Adblock RUlE. Filter the request by rule and forward it to upstream DNS server.
+#. Local "hosts" file, resolve domain name by hosts content.
+#. Support non-standard DNS port, default 53
 
 hosts rules
 ============
