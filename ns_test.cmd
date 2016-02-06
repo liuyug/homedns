@@ -16,7 +16,10 @@ echo --------------
 echo test subdomain
 echo --------------
 echo on
-nslookup ldap %SERVER%
+nslookup ldap.mylocal.home %SERVER%
+nslookup -type=ns mylocal.home %SERVER%
+nslookup -type=mx mylocal.home %SERVER%
+nslookup -type=soa mylocal.home %SERVER%
 
 @echo off
 echo ------------------
