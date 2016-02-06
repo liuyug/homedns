@@ -242,10 +242,10 @@ def dns_response(handler, data):
     logger.warn('\tRequest: %s(%s)' % (qn, qt))
     logger.info(request)
 
-    found = False
+    local = False
     if 'local' in config['server']['search']:
-        found = lookup_local(handler, request)
-    if not found and 'upstream' in config['server']['search']:
+        local = lookup_local(handler, request)
+    if not local and 'upstream' in config['server']['search']:
         qn2 = str(qn).rstrip('.')
         for name, param in rules.items():
             if param['rule'].isBlock(qn2):
