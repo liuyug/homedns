@@ -21,6 +21,9 @@ class Adblock(object):
     def __repr__(self):
         return '<Adblock: %s>' % self.name
 
+    def __bool__(self):
+        return bool(self.blacklist)
+
     def isNeedUpdate(self, refresh):
         if self.updating or refresh == 0:
             return False
@@ -49,7 +52,12 @@ class Adblock(object):
 
     def create(self, loader, cache=True):
         self.loader = loader
-        for line in iter(loader.open(cache=cache).readline, ''):
+        try:
+            loader_io = loader.open(cache=cache)
+        except Exception as err:
+            logger.error('Load %s error: %s' % (self, err))
+            return
+        for line in iter(loader_io.readline, ''):
             line = line.strip()
             if not line or line.startswith(('!', '[')):
                 continue

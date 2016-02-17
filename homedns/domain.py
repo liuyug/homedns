@@ -33,7 +33,11 @@ class Domain(object):
 
     def create(self, loader, cache=True):
         self.loader = loader
-        data = json.load(loader.open(cache=cache))
+        try:
+            data = json.load(loader.open(cache=cache))
+        except Exception as err:
+            logger.error('Load %s error: %s' % (self, err))
+            return
         for typ, records in data.items():
             if typ in ['SOA']:
                 dn = self.get_subdomain('@')
@@ -213,7 +217,12 @@ class HostDomain(Domain):
     def create(self, loader, cache=True):
         """ All are A or AAAA record in hosts file"""
         self.loader = loader
-        for line in iter(loader.open(cache=cache).readline, ''):
+        try:
+            loader_io = loader.open(cache=cache)
+        except Exception as err:
+            logger.error('Load %s error: %s' % (self, err))
+            return
+        for line in iter(loader_io.readline, ''):
             line = line.strip()
             if not line or line.startswith('#'):
                 continue

@@ -256,11 +256,13 @@ def dns_response(handler, data):
                 break
     # update
     for value in globalvars.rules.values():
-        if value['rule'].isNeedUpdate(value['refresh']):
-            value['rule'].async_update()
+        rule = value['rule']
+        if not rule or rule.isNeedUpdate(value['refresh']):
+            rule.async_update()
     for value in globalvars.local_domains.values():
-        if value['domain'].isNeedUpdate(value['refresh']):
-            value['domain'].async_update()
+        domain = value['domain']
+        if not domain or domain.isNeedUpdate(value['refresh']):
+            domain.async_update()
 
 
 def init_config(args):
