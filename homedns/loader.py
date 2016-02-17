@@ -9,11 +9,12 @@ import os.path
 import time
 try:
     from urlparse import urlparse
-    from urllib2 import urlopen, Request, build_opener
+    from urllib2 import urlopen, Request, build_opener, URLError
     from StringIO import StringIO
 except:
     from urllib.parse import urlparse
     from urllib.request import urlopen, Request, build_opener
+    from urllib.error import URLError
     from io import StringIO
 
 import socks
@@ -38,16 +39,18 @@ class BaseLoader(object):
         return '<%s: %s>' % (self.__class__.__name__, self.url)
 
     def is_base64(self, data):
-        lines = data.strip().split('\n')
+        lines = data.strip().split(b'\n')
         nums = list(map(len, lines))
         for x in range(len(nums) - 1):
             if nums[x] != 64:
                 return False
         if nums[-1] % 4 != 0:
             return False
+        if isinstance(lines[-1][0], int):
+            return True
         if not lines[-1][0].isalnum():
             return False
-        if '.' in lines[-1]:
+        if b'.' in lines[-1]:
             return False
         return True
 
@@ -67,12 +70,14 @@ class BaseLoader(object):
                     proxy['ip'],
                     proxy['port'],
                 ))
-                data = opener.open(r).read()
+                data_io = opener.open(r)
             else:
-                data = urlopen(r).read()
+                data_io = urlopen(r)
+            data = data_io.read()
             if self.is_base64(data):
                 logger.debug('BASE64 decode...')
                 data = base64.b64decode(data)
+            data = data.decode('utf-8')
             if self.cache:
                 with open(self.cache, 'w') as f:
                     f.write(data)

@@ -236,8 +236,11 @@ def lookup_upstream_worker(queue, server, proxy=None):
 
 
 def dns_response(handler, data):
-    request = DNSRecord.parse(data)
-
+    try:
+        request = DNSRecord.parse(data)
+    except Exception as err:
+        logger.error('Parse request: %s' % err)
+        return
     qn = request.q.qname
     qt = QTYPE[request.q.qtype]
     logger.warn('\tRequest: %s(%s)' % (qn, qt))
@@ -257,11 +260,11 @@ def dns_response(handler, data):
     # update
     for value in globalvars.rules.values():
         rule = value['rule']
-        if not rule or rule.isNeedUpdate(value['refresh']):
+        if rule.isNeedUpdate(value['refresh']):
             rule.async_update()
     for value in globalvars.local_domains.values():
         domain = value['domain']
-        if not domain or domain.isNeedUpdate(value['refresh']):
+        if domain.isNeedUpdate(value['refresh']):
             domain.async_update()
 
 

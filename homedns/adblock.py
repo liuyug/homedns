@@ -27,6 +27,8 @@ class Adblock(object):
     def isNeedUpdate(self, refresh):
         if self.updating or refresh == 0:
             return False
+        if not self.blacklist:
+            return True
         return self.loader.isNeedUpdate(refresh)
 
     def async_update(self, loader=None):
