@@ -40,7 +40,7 @@ echo ---------------
 echo test black list
 echo ---------------
 echo on
-nslookup www.goolge.com %SERVER%
+nslookup www.google.com %SERVER%
 
 @echo off
 echo ---------------

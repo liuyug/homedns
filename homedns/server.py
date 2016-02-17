@@ -28,8 +28,8 @@ from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 
 from .domain import Domain, HostDomain
 from .adblock import Adblock
-
-__version__ = '0.1.10'
+from .loader import TxtLoader, JsonLoader
+from . import globalvars
 
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
             now,
             client_ip, client_port,
         ))
-        if client_ip not in allowed_hosts:
+        if client_ip not in globalvars.allowed_hosts:
             logger.warn('\t*** Not allowed host: %s ***' % client_ip)
             return
         try:
@@ -100,11 +100,12 @@ def lookup_local(handler, request):
     )
 
     is_local = False
-    for domain in local_domains:
-        if config['smartdns']['hack_srv'] and qt == 'SRV' and \
+    for value in globalvars.local_domains.values():
+        domain = value['domain']
+        if globalvars.config['smartdns']['hack_srv'] and qt == 'SRV' and \
                 not domain.inDomain(qn2):
             r_srv = b'.'.join(qn.label[:2])
-            if r_srv.decode() in config['smartdns']['hack_srv']:
+            if r_srv.decode() in globalvars.config['smartdns']['hack_srv']:
                 qn2 = DNSLabel(domain.get_subdomain('@')).add(r_srv)
                 logger.warn('\tChange SRV request to %s from %s' % (qn2, qn))
 
@@ -243,102 +244,44 @@ def dns_response(handler, data):
     logger.info(request)
 
     local = False
-    if 'local' in config['server']['search']:
+    if 'local' in globalvars.config['server']['search']:
         local = lookup_local(handler, request)
-    if not local and 'upstream' in config['server']['search']:
+    if not local and 'upstream' in globalvars.config['server']['search']:
         qn2 = str(qn).rstrip('.')
-        for name, param in rules.items():
+        for name, param in globalvars.rules.items():
             if param['rule'].isBlock(qn2):
                 logger.warn('\tRequest(%s) is in "%s" list.' % (qn, name))
                 for t, q in param['upstreams']:
                     q.put((handler, request))
                 break
+    # update
+    for value in globalvars.rules.values():
+        if value['rule'].isNeedUpdate(value['refresh']):
+            value['rule'].async_update()
+    for value in globalvars.local_domains.values():
+        if value['domain'].isNeedUpdate(value['refresh']):
+            value['domain'].async_update()
 
 
-def init_config(config_file):
-    from . import default
-    global config
-    global local_domains
-    global allowed_hosts
-    global rules
-    if os.path.exists(config_file):
-        config = json.load(open(config_file))
+def init_config(args):
+    globalvars.init()
+
+    if os.path.exists(args.config):
+        globalvars.config = json.load(open(args.config))
     else:
-        config = {
-            'log': default.log,
-            'server': default.server,
-            'smartdns': default.smartdns,
-            'domain': default.domain,
+        globalvars.config = {
+            'log': globalvars.defaults.log,
+            'server': globalvars.defaults.server,
+            'smartdns': globalvars.defaults.smartdns,
+            'domains': globalvars.defaults.domains,
         }
-        json.dump(config, open(config_file, 'w'), indent=4)
-    config_dir = os.path.dirname(config_file)
+        json.dump(globalvars.config, open(args.config, 'w'), indent=4)
+    globalvars.config_dir = os.path.dirname(args.config)
+    cache_dir = os.path.join(globalvars.config_dir, 'cache')
+    if not os.path.exists(cache_dir):
+        os.mkdir(cache_dir)
 
-    rules = OrderedDict()
-    for name in config['smartdns']['rules']:
-        rule_file = os.path.join(config_dir, name + '.rules')
-        if os.path.exists(rule_file):
-            ab = Adblock(open(rule_file))
-            rules[name] = {
-                'rule': ab,
-                'upstreams': [],
-            }
-
-    proxy = config['smartdns']['proxy']
-    for upstream in config['smartdns']['upstreams']:
-        if upstream['rule'] in rules:
-            q = Queue()
-            t = threading.Thread(
-                target=lookup_upstream_worker,
-                args=(q, upstream),
-                kwargs={
-                    'proxy': proxy if upstream['proxy'] else None
-                }
-            )
-            t.daemon = True
-            t.start()
-            rules[upstream['rule']]['upstreams'].append((t, q))
-
-    allowed_hosts = netaddr.IPSet()
-    for hosts in config['server']['allowed_hosts']:
-        if '*' in hosts or '-' in hosts:
-            allowed_hosts.add(netaddr.IPGlob(hosts))
-        elif '/' in hosts:
-            allowed_hosts.add(netaddr.IPNetwork(hosts))
-        else:
-            allowed_hosts.add(hosts)
-
-    local_domains = []
-    for domain in config['domain']:
-        if not domain['enable']:
-            continue
-        ld = Domain(domain['name'])
-        ld.create(domain['records'])
-        local_domains.append(ld)
-    hosts_file = os.path.join(config_dir, 'hosts.homedns')
-    if os.path.exists(hosts_file):
-        host = HostDomain('home.dns')
-        host.create(open(hosts_file))
-        local_domains.append(host)
-
-    return config
-
-
-def run():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--version', action='version',
-                        version='%%(prog)s %s' % __version__)
-    parser.add_argument('-v', '--verbose', help='verbose help',
-                        action='count', default=-1)
-    parser.add_argument(
-        '--config',
-        help='read config from file',
-        default='homedns.json',
-    )
-    args = parser.parse_args()
-
-    init_config(args.config)
-
-    __log_level__ = config['log']['level']
+    __log_level__ = globalvars.config['log']['level']
     if args.verbose >= 0:
         __log_level__ = logging.WARNING - (args.verbose * 10)
 
@@ -353,31 +296,124 @@ def run():
             level=__log_level__,
         )
     else:
-        __log_file__ = config['log']['file']
+        __log_file__ = globalvars.config['log']['file']
         logging.basicConfig(
             filename=__log_file__,
             format=formatter,
             level=__log_level__,
         )
 
-    logger.debug('Config: %s', config)
-    for domain in local_domains:
+    logger.error('HomeDNS v%s' % globalvars.version)
+
+    proxy = globalvars.config['smartdns']['proxy']
+    globalvars.rules = OrderedDict()
+    for name, value in globalvars.config['smartdns']['rules']:
+        loader = TxtLoader(
+            value['url'],
+            cache_dir=cache_dir,
+            proxy=proxy if value['proxy'] else None,
+        )
+        logger.error('Add rules %s - %s' % (name, loader))
+        ab = Adblock(name)
+        ab.create(loader)
+        globalvars.rules[name] = {
+            'rule': ab,
+            'upstreams': [],
+            'refresh': value['refresh'],
+        }
+
+    for upstream in globalvars.config['smartdns']['upstreams']:
+        if upstream['rule'] in globalvars.rules:
+            q = Queue()
+            t = threading.Thread(
+                target=lookup_upstream_worker,
+                args=(q, upstream),
+                kwargs={
+                    'proxy': proxy if upstream['proxy'] else None
+                }
+            )
+            t.daemon = True
+            t.start()
+            globalvars.rules[upstream['rule']]['upstreams'].append((t, q))
+
+    globalvars.allowed_hosts = netaddr.IPSet()
+    for hosts in globalvars.config['server']['allowed_hosts']:
+        if '*' in hosts or '-' in hosts:
+            globalvars.allowed_hosts.add(netaddr.IPGlob(hosts))
+        elif '/' in hosts:
+            globalvars.allowed_hosts.add(netaddr.IPNetwork(hosts))
+        else:
+            globalvars.allowed_hosts.add(hosts)
+
+    globalvars.local_domains = {}
+    for domain in globalvars.config['domains']:
+        if domain['type'] == 'hosts':
+            loader = TxtLoader(
+                domain['url'],
+                cache_dir=cache_dir,
+                proxy=proxy if domain['proxy'] else None,
+            )
+            d = HostDomain(domain['name'])
+            d.create(loader)
+        elif domain['type'] == 'dns':
+            if domain['name'] == 'mylocal.home' and not os.path.exists(domain['url']):
+                json.dump(
+                    globalvars.defaults.mylocal_home,
+                    open(domain['url'], 'w'),
+                    indent=4,
+                )
+            loader = JsonLoader(
+                domain['url'],
+                cache_dir=cache_dir,
+                proxy=proxy if domain['proxy'] else None,
+            )
+            d = Domain(domain['name'])
+            d.create(loader)
+        logger.error('Add domain %s - %s' % (domain['name'], loader))
+        globalvars.local_domains[domain['name']] = {
+            'domain': d,
+            'refresh': domain['refresh'],
+        }
+
+
+def run():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--version', action='version',
+                        version='%%(prog)s %s' % globalvars.version)
+    parser.add_argument('-v', '--verbose', help='verbose help',
+                        action='count', default=-1)
+    parser.add_argument(
+        '--config',
+        help='read config from file',
+        default='homedns.json',
+    )
+    args = parser.parse_args()
+
+    init_config(args)
+
+    logger.debug('Config: %s', globalvars.config)
+    for value in globalvars.local_domains.values():
+        domain = value['domain']
         logger.debug('Domain "%s" records:' % domain)
         domain.output_records(logger.debug)
+    for value in globalvars.rules.values():
+        ab = value['rule']
+        logger.debug('Rule "%s":' % ab)
+        ab.output_list(logger.debug)
 
     logger.error("Starting nameserver...")
 
-    ip = config['server']['listen_ip']
-    port = config['server']['listen_port']
+    ip = globalvars.config['server']['listen_ip']
+    port = globalvars.config['server']['listen_port']
 
     logger.error('Listen on %s:%s' % (ip, port))
 
     servers = []
-    if 'udp' in config['server']['protocols']:
+    if 'udp' in globalvars.config['server']['protocols']:
         servers.append(
             socketserver.ThreadingUDPServer((ip, port), UDPRequestHandler)
         )
-    if 'tcp' in config['server']['protocols']:
+    if 'tcp' in globalvars.config['server']['protocols']:
         servers.append(
             socketserver.ThreadingTCPServer((ip, port), TCPRequestHandler),
         )

@@ -3,6 +3,8 @@
 
 # local domain
 
+import json
+import threading
 import logging
 
 import netaddr
@@ -20,6 +22,8 @@ class Domain(object):
         self.name = name + '.'
         self.ptr_records = {}
         self.records = {}
+        self.loader = None
+        self.updating = False
 
     def __repr__(self):
         return '<Domain: %s>' % self.name
@@ -27,7 +31,9 @@ class Domain(object):
     def __bool__(self):
         return bool(self.records)
 
-    def create(self, data):
+    def create(self, loader, cache=True):
+        self.loader = loader
+        data = json.load(loader.open(cache=cache))
         for typ, records in data.items():
             if typ in ['SOA']:
                 dn = self.get_subdomain('@')
@@ -174,14 +180,40 @@ class Domain(object):
                             r += self.search(rdata.label, qt)
         return r
 
+    def isNeedUpdate(self, refresh):
+        if self.updating or refresh == 0:
+            return False
+        return self.loader.isNeedUpdate(refresh)
+
+    def async_update(self, loader=None):
+        t = threading.Thread(
+            target=self.update,
+            kwargs={
+                'loader': loader,
+                'cache': False,
+            }
+        )
+        t.start()
+
+    def update(self, loader=None, cache=True):
+        if not loader:
+            loader = self.loader
+        self.updating = True
+        logger.error('Update domain %s', loader)
+        self.ptr_records = {}
+        self.records = {}
+        self.create(loader, cache)
+        self.updating = False
+
 
 class HostDomain(Domain):
     """
     transfer hosts file into special domain
     """
-    def create(self, obj):
+    def create(self, loader, cache=True):
         """ All are A or AAAA record in hosts file"""
-        for line in iter(obj.readline, ''):
+        self.loader = loader
+        for line in iter(loader.open(cache=cache).readline, ''):
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
