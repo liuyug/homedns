@@ -97,6 +97,10 @@ class defaults():
             'refresh': 28800,
         },
     ]
+    hosts_homedns = [
+        {'name': 'unknown.cisco.com', 'ip': '127.0.0.1'},
+        {'name': 'unknown.yahoo.com', 'ip': '127.0.0.1'},
+    ]
     mylocal_home = {
         # dns NS record
         'NS': ['ns1', 'ns2'],

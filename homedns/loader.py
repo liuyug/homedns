@@ -9,30 +9,37 @@ import os.path
 import time
 try:
     from urlparse import urlparse
-    from urllib2 import urlopen, Request, build_opener, URLError
+    from urllib2 import urlopen, Request, build_opener
     from StringIO import StringIO
 except:
     from urllib.parse import urlparse
     from urllib.request import urlopen, Request, build_opener
-    from urllib.error import URLError
     from io import StringIO
 
 import socks
 from sockshandler import SocksiPyHandler
+
+from . import globalvars
 
 
 logger = logging.getLogger(__name__)
 
 
 class BaseLoader(object):
-    def __init__(self, url, cache_dir=None, proxy=None):
-        self.url = url
-        bname = os.path.basename(self.url)
-        self.cache = os.path.join(cache_dir, bname) if cache_dir else None
+    def __init__(self, url, proxy=None):
+        bname = os.path.basename(url)
+        if bname == url:
+            self.url = os.path.join(globalvars.config_dir, bname)
+        else:
+            self.url = url
+        cache_dir = os.path.join(globalvars.config_dir, 'cache')
+        if not os.path.exists(cache_dir):
+            os.mkdir(cache_dir)
+        self.cache = os.path.join(cache_dir, bname)
         self.proxy = proxy
 
         parser = urlparse(self.url)
-        self.local = not bool(parser.scheme)
+        self.local = not parser.netloc
         self._last_update_time = 0
 
     def __repr__(self):
@@ -58,7 +65,7 @@ class BaseLoader(object):
         if self.local:
             self._last_update_time = os.stat(self.url).st_mtime
             return open(self.url)
-        elif cache and self.cache and os.path.exists(self.cache):
+        elif cache and os.path.exists(self.cache):
             self._last_update_time = os.stat(self.cache).st_mtime
             return open(self.cache)
         else:
