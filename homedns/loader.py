@@ -46,18 +46,18 @@ class BaseLoader(object):
         return '<%s: %s>' % (self.__class__.__name__, self.url)
 
     def is_base64(self, data):
-        lines = data.strip().split(b'\n')
+        if not isinstance(data, str):
+            data = data.decode('utf-8')
+        lines = data.strip().split('\n')
         nums = list(map(len, lines))
         for x in range(len(nums) - 1):
             if nums[x] != 64:
                 return False
         if nums[-1] % 4 != 0:
             return False
-        if isinstance(lines[-1][0], int):
-            return True
         if not lines[-1][0].isalnum():
             return False
-        if b'.' in lines[-1]:
+        if '.' in lines[-1]:
             return False
         return True
 
@@ -84,7 +84,8 @@ class BaseLoader(object):
             if self.is_base64(data):
                 logger.debug('BASE64 decode...')
                 data = base64.b64decode(data)
-            data = data.decode('utf-8')
+            if not isinstance(data, str):
+                data = data.decode('utf-8')
             if self.cache:
                 with open(self.cache, 'w') as f:
                     f.write(data)
