@@ -105,7 +105,7 @@ def lookup_local(handler, request):
         if globalvars.config['smartdns']['hack_srv'] and qt == 'SRV' and \
                 not domain.inDomain(qn2):
             r_srv = b'.'.join(qn.label[:2])
-            if r_srv.decode() in globalvars.config['smartdns']['hack_srv']:
+            if r_srv.decode().lower() in globalvars.config['smartdns']['hack_srv']:
                 qn2 = DNSLabel(domain.get_subdomain('@')).add(r_srv)
                 logger.warn('\tChange SRV request to %s from %s' % (qn2, qn))
 
