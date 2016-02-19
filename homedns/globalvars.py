@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.12'
+version = '0.1.14'
 
 
 class defaults():
@@ -25,18 +25,20 @@ class defaults():
     smartdns = {
         # match rule by order in list.
         'rules': [
-            ['black', {
+            {
+                'name': 'black',
                 'url': 'https://github.com/liuyug/homedns/raw/master/black.rules',
                 'proxy': False,
                 'refresh': 60 * 60 * 8,
                 'dns': ['gdns1', 'gdns2'],
-            }],
-            ['default', {
+            },
+            {
+                'name': 'default',
                 'url': 'default.rules',
                 'proxy': False,
                 'refresh': 60 * 60 * 8,
                 'dns': ['114dns1', '114dns2'],
-            }],
+            },
         ],
         'hack_srv': ['_ldap._tcp'],
         'proxy': {
