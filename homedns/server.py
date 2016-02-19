@@ -273,11 +273,17 @@ def dns_response(handler, data):
 def init_config(args):
     globalvars.init()
 
+    fsplit = os.path.splitext(args.config)
+    ini_file = fsplit[0] + '.ini'
+    json_file = fsplit[0] + '.json'
+    ext = fsplit[1].lower()
     if os.path.exists(args.config):
-        if os.path.splitext(args.config)[1].lower() == '.ini':
+        if ext == '.ini':
             globalvars.config = ini_read(args.config)
-        else:
+        elif ext == '.json':
             globalvars.config = json.load(open(args.config))
+        else:
+            raise TypeError('Unknown config file: %s' % args.config)
     else:
         globalvars.config = {
             'log': globalvars.defaults.log,
@@ -285,10 +291,10 @@ def init_config(args):
             'smartdns': globalvars.defaults.smartdns,
             'domains': globalvars.defaults.domains,
         }
-        if os.path.splitext(args.config)[1].lower() == '.ini':
-            ini_write(globalvars.config, args.config)
-        else:
-            json.dump(globalvars.config, open(args.config, 'w'), indent=4)
+    if not os.path.exists(ini_file):
+        ini_write(globalvars.config, ini_file)
+    if not os.path.exists(json_file):
+        json.dump(globalvars.config, open(json_file, 'w'), indent=4)
     globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
 
     __log_level__ = globalvars.config['log']['level']
