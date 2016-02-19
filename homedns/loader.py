@@ -119,6 +119,8 @@ if __name__ == '__main__':
     parser.add_argument('url', help='load url or path')
     args = parser.parse_args()
 
+    globalvars.init()
+    globalvars.config_dir = ''
     loader = TxtLoader(args.url)
     data = loader.open().read()
     print(data)

@@ -108,11 +108,17 @@ class Adblock(object):
 
 if __name__ == '__main__':
     import argparse
+    import os.path
     parser = argparse.ArgumentParser()
     parser.add_argument('--rules', help='adblock rules file')
     parser.add_argument('--host', help='search host')
     args = parser.parse_args()
 
-    from .loader import RuleLoader
-    ab = Adblock(RuleLoader(args.rules))
-    print(ab.inList(args.host))
+    from . import globalvars
+    from .loader import TxtLoader
+    globalvars.init()
+    globalvars.config_dir = ''
+    ab = Adblock(os.path.basename(args.rules))
+    ab.create(TxtLoader(args.rules))
+    print('Black list: %s' % ab.isBlack(args.host))
+    print('White list: %s' % ab.isWhite(args.host))
