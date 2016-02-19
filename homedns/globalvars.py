@@ -28,14 +28,14 @@ class defaults():
             ['black', {
                 'url': 'https://github.com/liuyug/homedns/raw/master/black.rules',
                 'proxy': False,
-                # 60 * 60 * 8
-                'refresh': 28800,
+                'refresh': 60 * 60 * 8,
+                'dns': ['gdns1', 'gdns2'],
             }],
             ['default', {
                 'url': 'default.rules',
                 'proxy': False,
-                # 60 * 60 * 8
-                'refresh': 28800,
+                'refresh': 60 * 60 * 8,
+                'dns': ['114dns1', '114dns2'],
             }],
         ],
         'hack_srv': ['_ldap._tcp'],
@@ -48,36 +48,32 @@ class defaults():
             'port': 1080,
         },
         # upstream dns server
-        'upstreams': [
-            {
+        'upstreams': {
+            '114dns1': {
                 'ip': '114.114.114.114',
                 'port': 53,
                 'timeout': 5,
-                'rule': 'default',
                 'proxy': False,
             },
-            {
+            '114dns2': {
                 'ip': '114.114.115.115',
                 'port': 53,
                 'timeout': 5,
-                'rule': 'default',
                 'proxy': False,
             },
-            {
+            'gdns1': {
                 'ip': '8.8.8.8',
                 'port': 53,
                 'timeout': 5,
-                'rule': 'black',
                 'proxy': True,
             },
-            {
+            'gdns2': {
                 'ip': '8.8.4.4',
                 'port': 53,
                 'timeout': 5,
-                'rule': 'black',
                 'proxy': True,
             },
-        ],
+        },
     }
     domains = [
         {
@@ -85,16 +81,14 @@ class defaults():
             'url': 'mylocal.home.json',
             'proxy': False,
             'type': 'dns',
-            # 60 * 60 * 8
-            'refresh': 28800,
+            'refresh': 60 * 60 * 8,
         },
         {
             'name': 'hosts.homedns',
             'url': 'hosts.homedns',
             'proxy': False,
             'type': 'hosts',
-            # 60 * 60 * 8
-            'refresh': 28800,
+            'refresh': 60 * 60 * 8,
         },
     ]
     hosts_homedns = [
@@ -113,14 +107,10 @@ class defaults():
             # dns contact email address. '@' is replaced by '.'
             'rname': 'admin',
             'serial': 20160101,
-            # 60 * 60 * 1
-            'refresh': 3600,
-            # 60 * 60 * 3
-            'retry': 10800,
-            # 60 * 60 * 24
-            'expire': 86400,
-            # 60 * 60 * 1
-            'minimum': 3600,
+            'refresh': 60 * 60 * 1,
+            'retry': 60 * 60 * 3,
+            'expire': 60 * 60 * 24,
+            'minimum': 60 * 60 * 1,
         },
         # dns A record. ipv4
         'A': {
@@ -166,5 +156,6 @@ def init():
     global config
     global local_domains
     global allowed_hosts
+    global upstreams
     global rules
     global config_dir

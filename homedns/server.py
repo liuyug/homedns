@@ -239,7 +239,7 @@ def dns_response(handler, data):
     try:
         request = DNSRecord.parse(data)
     except Exception as err:
-        logger.error('Parse request: %s' % err)
+        logger.error('Parse request error: %s' % err)
         return
     qn = request.q.qname
     qt = QTYPE[request.q.qtype]
@@ -254,8 +254,9 @@ def dns_response(handler, data):
         for name, param in globalvars.rules.items():
             if param['rule'].isBlock(qn2):
                 logger.warn('\tRequest(%s) is in "%s" list.' % (qn, name))
-                for t, q in param['upstreams']:
-                    q.put((handler, request))
+                for value in param['upstreams']:
+                    value['queue'].put((handler, request))
+                    value['count'] += 1
                 break
     # update
     for value in globalvars.rules.values():
@@ -309,6 +310,27 @@ def init_config(args):
     logger.error('Config Dir: %s' % globalvars.config_dir)
 
     proxy = globalvars.config['smartdns']['proxy']
+
+    # upstream dns server
+    upstreams = globalvars.upstreams = {}
+    for name, value in globalvars.config['smartdns']['upstreams'].items():
+        q = Queue()
+        t = threading.Thread(
+            target=lookup_upstream_worker,
+            args=(q, value),
+            kwargs={
+                'proxy': proxy if value['proxy'] else None
+            }
+        )
+        t.daemon = True
+        t.start()
+        upstreams[name] = {
+            'queue': q,
+            'thread': t,
+            'count': 0,
+        }
+
+    # rules
     globalvars.rules = OrderedDict()
     for name, value in globalvars.config['smartdns']['rules']:
         loader = TxtLoader(
@@ -331,24 +353,11 @@ def init_config(args):
         ab.create(loader)
         globalvars.rules[name] = {
             'rule': ab,
-            'upstreams': [],
+            'upstreams': [upstreams[dns] for dns in value['dns'] if dns in upstreams],
             'refresh': value['refresh'],
         }
 
-    for upstream in globalvars.config['smartdns']['upstreams']:
-        if upstream['rule'] in globalvars.rules:
-            q = Queue()
-            t = threading.Thread(
-                target=lookup_upstream_worker,
-                args=(q, upstream),
-                kwargs={
-                    'proxy': proxy if upstream['proxy'] else None
-                }
-            )
-            t.daemon = True
-            t.start()
-            globalvars.rules[upstream['rule']]['upstreams'].append((t, q))
-
+    # allowed hosts
     globalvars.allowed_hosts = netaddr.IPSet()
     for hosts in globalvars.config['server']['allowed_hosts']:
         if '*' in hosts or '-' in hosts:
@@ -358,6 +367,7 @@ def init_config(args):
         else:
             globalvars.allowed_hosts.add(hosts)
 
+    # local domains
     globalvars.local_domains = {}
     for domain in globalvars.config['domains']:
         if domain['type'] == 'hosts':
