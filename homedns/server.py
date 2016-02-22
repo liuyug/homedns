@@ -5,10 +5,6 @@ import datetime
 import os.path
 import time
 import threading
-try:
-    from queue import Queue
-except:
-    from Queue import Queue
 import binascii
 import logging
 import argparse
@@ -18,9 +14,13 @@ import struct
 import traceback
 from collections import OrderedDict
 try:
+    # py3
     import socketserver
+    from queue import Queue
 except:
+    # py2
     import SocketServer as socketserver
+    from Queue import Queue
 
 import socks
 import netaddr
@@ -29,6 +29,7 @@ from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 from .domain import Domain, HostDomain
 from .adblock import Adblock
 from .loader import TxtLoader, JsonLoader
+from .iniconfig import ini_read, ini_write
 from . import globalvars
 
 
@@ -272,8 +273,17 @@ def dns_response(handler, data):
 def init_config(args):
     globalvars.init()
 
+    fsplit = os.path.splitext(args.config)
+    ini_file = fsplit[0] + '.ini'
+    json_file = fsplit[0] + '.json'
+    ext = fsplit[1].lower()
     if os.path.exists(args.config):
-        globalvars.config = json.load(open(args.config))
+        if ext == '.ini':
+            globalvars.config = ini_read(args.config)
+        elif ext == '.json':
+            globalvars.config = json.load(open(args.config))
+        else:
+            raise TypeError('Unknown config file: %s' % args.config)
     else:
         globalvars.config = {
             'log': globalvars.defaults.log,
@@ -281,7 +291,10 @@ def init_config(args):
             'smartdns': globalvars.defaults.smartdns,
             'domains': globalvars.defaults.domains,
         }
-        json.dump(globalvars.config, open(args.config, 'w'), indent=4)
+    if not os.path.exists(ini_file):
+        ini_write(globalvars.config, ini_file)
+    if not os.path.exists(json_file):
+        json.dump(globalvars.config, open(json_file, 'w'), indent=4)
     globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
 
     __log_level__ = globalvars.config['log']['level']
@@ -332,7 +345,8 @@ def init_config(args):
 
     # rules
     globalvars.rules = OrderedDict()
-    for name, value in globalvars.config['smartdns']['rules']:
+    for value in globalvars.config['smartdns']['rules']:
+        name = value['name']
         loader = TxtLoader(
             value['url'],
             proxy=proxy if value['proxy'] else None,
@@ -423,7 +437,7 @@ def run():
     parser.add_argument(
         '--config',
         help='read config from file',
-        default='homedns.json',
+        default='homedns.ini',
     )
     args = parser.parse_args()
 
