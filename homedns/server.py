@@ -296,12 +296,13 @@ def init_config(args):
     if not os.path.exists(json_file):
         json.dump(globalvars.config, open(json_file, 'w'), indent=4)
     globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
+    globalvars.log_dir = globalvars.config_dir
 
-    __log_level__ = globalvars.config['log']['level']
+    log_level = globalvars.config['log']['level']
     if args.verbose >= 0:
-        __log_level__ = logging.WARNING - (args.verbose * 10)
+        log_level = logging.WARNING - (args.verbose * 10)
 
-    if __log_level__ <= logging.DEBUG:
+    if log_level <= logging.DEBUG:
         formatter = '[%(name)s %(lineno)d] %(message)s'
     else:
         formatter = '%(message)s'
@@ -309,14 +310,17 @@ def init_config(args):
     if args.verbose >= 0:
         logging.basicConfig(
             format=formatter,
-            level=__log_level__,
+            level=log_level,
         )
     else:
-        __log_file__ = globalvars.config['log']['file']
+        log_file = os.path.join(
+            globalvars.log_dir,
+            globalvars.config['log']['file']
+        )
         logging.basicConfig(
-            filename=__log_file__,
+            filename=log_file,
             format=formatter,
-            level=__log_level__,
+            level=log_level
         )
 
     logger.error('HomeDNS v%s' % globalvars.version)

@@ -161,3 +161,4 @@ def init():
     global upstreams
     global rules
     global config_dir
+    global log_dir
