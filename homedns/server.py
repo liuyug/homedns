@@ -7,6 +7,7 @@ import time
 import threading
 import binascii
 import logging
+import logging.handlers
 import argparse
 import json
 import socket
@@ -31,9 +32,6 @@ from .adblock import Adblock
 from .loader import TxtLoader, JsonLoader
 from .iniconfig import ini_read, ini_write
 from . import globalvars
-
-
-logger = logging.getLogger(__name__)
 
 
 class BaseRequestHandler(socketserver.BaseRequestHandler):
@@ -298,33 +296,40 @@ def init_config(args):
     globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
     globalvars.log_dir = globalvars.config_dir
 
-    log_level = globalvars.config['log']['level']
     if args.verbose >= 0:
         log_level = logging.WARNING - (args.verbose * 10)
-
-    if log_level <= logging.DEBUG:
-        formatter = '[%(name)s %(lineno)d] %(message)s'
     else:
-        formatter = '%(message)s'
+        log_level = globalvars.config['log']['level']
+    log_file = os.path.join(
+        globalvars.log_dir,
+        globalvars.config['log']['file']
+    )
+    formatter1 = logging.Formatter('[%(name)s %(lineno)d] %(message)s')
+    formatter2 = logging.Formatter('%(message)s')
 
-    if args.verbose >= 0:
-        logging.basicConfig(
-            format=formatter,
-            level=log_level,
-        )
-    else:
-        log_file = os.path.join(
-            globalvars.log_dir,
-            globalvars.config['log']['file']
-        )
-        logging.basicConfig(
-            filename=log_file,
-            format=formatter,
-            level=log_level
-        )
+    file_handler = logging.handlers.TimedRotatingFileHandler(
+        filename=log_file,
+        when='D',
+        interval=1,
+        backupCount=7,
+    )
+    file_handler.setFormatter(formatter1)
+    file_handler.setLevel(logging.DEBUG)
 
-    logger.error('HomeDNS v%s' % globalvars.version)
-    logger.error('Config Dir: %s' % globalvars.config_dir)
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter2)
+    console_handler.setLevel(log_level)
+
+    app_logger = logging.getLogger(__name__.partition('.')[0])
+    app_logger.setLevel(logging.DEBUG)
+    app_logger.addHandler(file_handler)
+    app_logger.addHandler(console_handler)
+
+    app_logger.error('HomeDNS v%s' % globalvars.version)
+    app_logger.error('Config Dir: %s' % globalvars.config_dir)
+
+    global logger
+    logger = logging.getLogger(__name__)
 
     proxy = globalvars.config['smartdns']['proxy']
 
@@ -366,7 +371,7 @@ def init_config(args):
                     name,
                     loader.url,
                 ))
-        logger.error('Add rules %s - %s' % (name, loader))
+        logger.warn('Add rules %s - %s' % (name, loader))
         ab = Adblock(name)
         ab.create(loader)
         globalvars.rules[name] = {
@@ -425,7 +430,7 @@ def init_config(args):
                     ))
             d = Domain(domain['name'])
             d.create(loader)
-        logger.error('Add domain %s - %s' % (domain['name'], loader))
+        logger.warn('Add domain %s - %s' % (domain['name'], loader))
         globalvars.local_domains[domain['name']] = {
             'domain': d,
             'refresh': domain['refresh'],
@@ -457,12 +462,12 @@ def run():
         logger.debug('Rule "%s":' % ab)
         ab.output_list(logger.debug)
 
-    logger.error("Starting nameserver...")
+    logger.warn("Starting nameserver...")
 
     ip = globalvars.config['server']['listen_ip']
     port = globalvars.config['server']['listen_port']
 
-    logger.error('Listen on %s:%s' % (ip, port))
+    logger.warn('Listen on %s:%s' % (ip, port))
 
     servers = []
     if 'udp' in globalvars.config['server']['protocols']:
