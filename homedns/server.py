@@ -130,7 +130,7 @@ def lookup_local(handler, request):
                 rqt = QTYPE[r.rtype]
                 lines.append('\t\t%s(%s)' % (rqn, rqt))
             logger.warn('\tFrom LOCAL return:\n%s' % '\n'.join(lines))
-            logger.info(reply)
+            logger.info('\n' + str(reply))
         else:
             logger.warn('\tFrom LOCAL return: N/A')
         handler.send_data(reply.pack())
@@ -222,7 +222,7 @@ def lookup_upstream_worker(queue, server, proxy=None):
                     server['ip'], server['port'],
                     '\n'.join(lines)
                 ))
-                logger.info(reply)
+                logger.debug('\n' + str(reply))
                 handler.send_data(reply.pack())
         except Exception as err:
             if logger.isEnabledFor(logging.DEBUG):
@@ -243,7 +243,7 @@ def dns_response(handler, data):
     qn = request.q.qname
     qt = QTYPE[request.q.qtype]
     logger.warn('\tRequest: %s(%s)' % (qn, qt))
-    logger.info(request)
+    logger.debug('\n' + str(request))
 
     local = False
     if 'local' in globalvars.config['server']['search']:
