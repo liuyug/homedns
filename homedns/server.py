@@ -312,6 +312,7 @@ def init_config(args):
         when='D',
         interval=1,
         backupCount=7,
+        utc=False,
     )
     file_handler.setFormatter(formatter1)
     file_handler.setLevel(logging.DEBUG)
@@ -327,6 +328,7 @@ def init_config(args):
 
     app_logger.error('HomeDNS v%s' % globalvars.version)
     app_logger.error('Config Dir: %s' % globalvars.config_dir)
+    app_logger.error('Log file: %s' % log_file)
 
     global logger
     logger = logging.getLogger(__name__)
@@ -442,7 +444,7 @@ def run():
     parser.add_argument('--version', action='version',
                         version='%%(prog)s %s' % globalvars.version)
     parser.add_argument('-v', '--verbose', help='verbose help',
-                        action='count', default=-1)
+                        action='count', default=0)
     parser.add_argument(
         '--config',
         help='read config from file',
