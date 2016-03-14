@@ -213,12 +213,15 @@ def lookup_upstream_worker(queue, server, proxy=None):
                 ))
                 logger.debug('\n' + str(reply))
                 handler.send_data(reply.pack())
+        except socket.error as err:
+            frm = '%s:%s' % (server['ip'], server['port'])
+            if server['proxy']:
+                frm += ' (with proxy %(ip)s:%(port)s)' % proxy
+            logger.error('\tError when lookup from %s: %s' % (frm, err))
         except Exception as err:
             if logger.isEnabledFor(logging.DEBUG):
                 traceback.print_exc()
             frm = '%s:%s' % (server['ip'], server['port'])
-            if server['proxy']:
-                frm += ' (with proxy %(ip)s:%(port)s)' % proxy
             logger.error('\tError when lookup from %s: %s' % (frm, err))
         queue.task_done()
 
