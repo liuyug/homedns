@@ -81,15 +81,15 @@ class Adblock(object):
             # remove *
             lp = line.partition('*')
             line = lp[0] if '.' in lp[0] else lp[2]
-            # remove || .
-            for ch in ('||', '.'):
+            # remove ||
+            for ch in ('||'):
                 line = line.lstrip(ch)
             # only add lower character
             domain_list.add(line.lower())
 
     def _inList(self, domain_list, host):
         for domain in domain_list:
-            if domain == '*' or host[-len(domain):] == domain:
+            if domain == '.*' or host[-len(domain):] == domain:
                 return True
         return False
 

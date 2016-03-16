@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.15'
+version = '0.1.16'
 
 
 class defaults():
