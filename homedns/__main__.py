@@ -66,8 +66,11 @@ def init_config(args):
         globalvars.log_dir,
         globalvars.config['log']['file']
     )
-    formatter1 = logging.Formatter('[%(name)s %(lineno)d] %(message)s')
-    formatter2 = logging.Formatter('%(message)s')
+    formatter = logging.Formatter('%(message)s')
+    if log_level2 == logging.DEBUG:
+        formatter2 = logging.Formatter('[%(name)s %(lineno)d] %(message)s')
+    else:
+        formatter2 = formatter
 
     file_handler = logging.handlers.TimedRotatingFileHandler(
         filename=log_file,
@@ -76,12 +79,12 @@ def init_config(args):
         backupCount=7,
         utc=False,
     )
-    file_handler.setFormatter(formatter1)
+    file_handler.setFormatter(formatter2)
     file_handler.setLevel(log_level2)
     file_handler.doRollover()
 
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter2)
+    console_handler.setFormatter(formatter)
     console_handler.setLevel(log_level)
 
     if '.' in __name__:

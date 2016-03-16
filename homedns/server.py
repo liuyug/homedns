@@ -118,10 +118,10 @@ def lookup_local(handler, request):
                 rqn = r.rdata
                 rqt = QTYPE[r.rtype]
                 lines.append('\t\t%s(%s)' % (rqn, rqt))
-            logger.info('\tFrom LOCAL return:\n%s' % '\n'.join(lines))
+            logger.info('\tReturn from LOCAL:\n%s' % '\n'.join(lines))
             logger.debug('\n' + str(reply))
         else:
-            logger.info('\tFrom LOCAL return: N/A')
+            logger.info('\tReturn from LOCAL: N/A')
         handler.send_data(reply.pack())
     return is_local
 
@@ -207,7 +207,7 @@ def lookup_upstream_worker(queue, server, proxy=None):
                     rqn = r.rdata
                     rqt = QTYPE[r.rtype]
                     lines.append('\t\t%s(%s)' % (rqn, rqt))
-                logger.info('\tFrom %s:%s return:\n%s' % (
+                logger.info('\tReturn from %s:%s:\n%s' % (
                     server['ip'], server['port'],
                     '\n'.join(lines)
                 ))
