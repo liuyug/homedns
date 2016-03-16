@@ -78,6 +78,7 @@ def init_config(args):
     )
     file_handler.setFormatter(formatter1)
     file_handler.setLevel(log_level2)
+    file_handler.doRollover()
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter2)
