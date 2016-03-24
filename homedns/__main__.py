@@ -110,21 +110,25 @@ def init_config(args):
     # upstream dns server
     upstreams = globalvars.upstreams = {}
     for name, value in globalvars.config['smartdns']['upstreams'].items():
-        q = Queue()
-        t = threading.Thread(
-            target=lookup_upstream_worker,
-            args=(q, value),
-            kwargs={
-                'proxy': proxy if value['proxy'] else None
-            }
-        )
-        t.daemon = True
-        t.start()
-        upstreams[name] = {
-            'queue': q,
-            'thread': t,
-            'count': 0,
-        }
+        upstreams[name] = []
+        for ip in value['ip']:
+            server = value.copy()
+            server['ip'] = ip
+            q = Queue()
+            t = threading.Thread(
+                target=lookup_upstream_worker,
+                args=(q, server),
+                kwargs={
+                    'proxy': proxy if server['proxy'] else None
+                }
+            )
+            t.daemon = True
+            t.start()
+            upstreams[name].append({
+                'queue': q,
+                'thread': t,
+                'count': 0,
+            })
 
     # rules
     globalvars.rules = OrderedDict()

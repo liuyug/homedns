@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.16'
+version = '0.1.17'
 
 
 class defaults():
@@ -30,14 +30,14 @@ class defaults():
                 'url': 'https://github.com/liuyug/homedns/raw/master/black.rules',
                 'proxy': False,
                 'refresh': 60 * 60 * 8,
-                'dns': ['gdns1', 'gdns2'],
+                'dns': ['gdns'],
             },
             {
                 'name': 'default',
                 'url': 'default.rules',
                 'proxy': False,
                 'refresh': 60 * 60 * 8,
-                'dns': ['114dns1', '114dns2'],
+                'dns': ['114dns'],
             },
         ],
         'hack_srv': ['_ldap._tcp'],
@@ -51,26 +51,14 @@ class defaults():
         },
         # upstream dns server
         'upstreams': {
-            '114dns1': {
-                'ip': '114.114.114.114',
+            '114dns': {
+                'ip': ['114.114.114.114', '114.114.115.115'],
                 'port': 53,
                 'timeout': 5,
                 'proxy': False,
             },
-            '114dns2': {
-                'ip': '114.114.115.115',
-                'port': 53,
-                'timeout': 5,
-                'proxy': False,
-            },
-            'gdns1': {
-                'ip': '8.8.8.8',
-                'port': 53,
-                'timeout': 5,
-                'proxy': True,
-            },
-            'gdns2': {
-                'ip': '8.8.4.4',
+            'gdns': {
+                'ip': ['8.8.8.8', '8.8.4.4'],
                 'port': 53,
                 'timeout': 5,
                 'proxy': True,

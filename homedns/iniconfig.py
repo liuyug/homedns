@@ -49,7 +49,7 @@ def ini_read(config_file):
     for name in names:
         section = 'dns_' + name.strip()
         smartdns['upstreams'][name] = {
-            'ip': cfg.get(section, 'ip'),
+            'ip': cfg.get(section, 'ip').split(','),
             'port': cfg.getint(section, 'port'),
             'timeout': cfg.getint(section, 'timeout'),
             'proxy': cfg.getboolean(section, 'proxy'),
@@ -102,7 +102,7 @@ def ini_write(config, config_file):
     for name, value in config['smartdns']['upstreams'].items():
         section = 'dns_' + name
         cfg.add_section(section)
-        cfg.set(section, 'ip', value['ip'])
+        cfg.set(section, 'ip', ','.join(value['ip']))
         cfg.set(section, 'port', str(value['port']))
         cfg.set(section, 'timeout', str(value['timeout']))
         cfg.set(section, 'proxy', str(value['proxy']))

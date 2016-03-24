@@ -245,9 +245,10 @@ def dns_response(handler, data):
         for name, param in globalvars.rules.items():
             if param['rule'].isBlock(qn2):
                 logger.warn('\tRequest(%s) is in "%s" list.' % (qn, name))
-                for value in param['upstreams']:
-                    value['queue'].put((handler, request))
-                    value['count'] += 1
+                for dns in param['upstreams']:
+                    for value in dns:
+                        value['queue'].put((handler, request))
+                        value['count'] += 1
                 break
     # update
     for value in globalvars.rules.values():

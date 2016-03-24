@@ -1,3 +1,4 @@
 dnslib
 netaddr
 pysocks
+netifaces
