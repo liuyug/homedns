@@ -36,6 +36,12 @@ def ini_read(config_file):
             'dns': strip_item(cfg.get(section, 'dns').split(',')),
         })
     smartdns['hack_srv'] = strip_item(cfg.get('smartdns', 'hack_srv').split(','))
+    section = 'bogus_nxdomain'
+    smartdns['bogus_nxdomain'] = {
+        'url': cfg.get(section, 'url'),
+        'proxy': cfg.getboolean(section, 'proxy'),
+        'refresh': cfg.getint(section, 'refresh'),
+    }
     section = cfg.get('smartdns', 'proxy')
     smartdns['proxy'] = {
         'type': cfg.get(section, 'type'),
@@ -94,6 +100,10 @@ def ini_write(config, config_file):
         cfg.set(section, 'refresh', str(rule['refresh']))
         cfg.set(section, 'dns', ','.join(rule['dns']))
     cfg.set('smartdns', 'hack_srv', ','.join(config['smartdns']['hack_srv']))
+    cfg.add_section('bogus_nxdomain')
+    cfg.set('bogus_nxdomain', 'url', config['smartdns']['bogus_nxdomain']['url'])
+    cfg.set('bogus_nxdomain', 'proxy', str(config['smartdns']['bogus_nxdomain']['proxy']))
+    cfg.set('bogus_nxdomain', 'refresh', str(config['smartdns']['bogus_nxdomain']['refresh']))
     cfg.set('smartdns', 'proxy', 'proxy')
     cfg.add_section('proxy')
     cfg.set('proxy', 'type', config['smartdns']['proxy']['type'])

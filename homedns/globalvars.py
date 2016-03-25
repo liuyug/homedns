@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.17'
+version = '0.1.20'
 
 
 class defaults():
@@ -41,6 +41,11 @@ class defaults():
             },
         ],
         'hack_srv': ['_ldap._tcp'],
+        'bogus_nxdomain': {
+            'url': 'bogus-nxdomain.lst',
+            'proxy': False,
+            'refresh': 60 * 60 * 8,
+        },
         'proxy': {
             # proxy type: SOCKS5, SOCKS4 or HTTP
             'type': 'SOCKS5',
@@ -148,5 +153,6 @@ def init():
     global allowed_hosts
     global upstreams
     global rules
+    global bogus_nxdomain
     global config_dir
     global log_dir

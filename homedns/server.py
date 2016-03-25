@@ -115,7 +115,7 @@ def lookup_local(handler, request):
         if reply.rr:
             lines = []
             for r in reply.rr:
-                rqn = r.rdata
+                rqn = str(r.rdata)
                 rqt = QTYPE[r.rtype]
                 lines.append('\t\t%s(%s)' % (rqn, rqt))
             logger.info('\tReturn from LOCAL:\n%s' % '\n'.join(lines))
@@ -202,15 +202,20 @@ def lookup_upstream_worker(queue, server, proxy=None):
             )
             reply = DNSRecord.parse(r_data)
             if reply.rr:
-                lines = []
+                logger.info('\tReturn from %(ip)s:%(port)s:' % server)
+                bogus_rr = []
                 for r in reply.rr:
-                    rqn = r.rdata
+                    rqn = str(r.rdata)
                     rqt = QTYPE[r.rtype]
-                    lines.append('\t\t%s(%s)' % (rqn, rqt))
-                logger.info('\tReturn from %s:%s:\n%s' % (
-                    server['ip'], server['port'],
-                    '\n'.join(lines)
-                ))
+                    if rqt in ['A', 'AAAA'] and rqn in globalvars.bogus_nxdomain:
+                        bogus_rr.append(r)
+                        logger.warn('\t*** Bogus Answer: %s(%s) ***' % (rqn, rqt))
+                    else:
+                        logger.info('\t\t%s(%s)' % (rqn, rqt))
+                if bogus_rr:
+                    for r in bogus_rr:
+                        reply.rr.remove(r)
+                    reply.set_header_qa()
                 logger.debug('\n' + str(reply))
                 handler.send_data(reply.pack())
         except socket.error as err:
