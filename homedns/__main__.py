@@ -17,6 +17,7 @@ from .domain import Domain, HostDomain
 from .loader import TxtLoader, JsonLoader
 from .adblock import Adblock
 from .iniconfig import ini_read, ini_write
+from .dhcp import getdns
 
 if py_version == 3:
     import socketserver
@@ -24,6 +25,20 @@ if py_version == 3:
 elif py_version == 2:
     import SocketServer as socketserver
     from Queue import Queue
+
+
+def create_dns_service(server, proxy):
+    q = Queue()
+    t = threading.Thread(
+        target=lookup_upstream_worker,
+        args=(q, server),
+        kwargs={
+            'proxy': proxy if server['proxy'] else None
+        }
+    )
+    t.daemon = True
+    t.start()
+    return {'queue': q, 'thread': t, 'count': 0, 'server': server}
 
 
 def init_config(args):
@@ -111,24 +126,17 @@ def init_config(args):
     upstreams = globalvars.upstreams = {}
     for name, value in globalvars.config['smartdns']['upstreams'].items():
         upstreams[name] = []
-        for ip in value['ip']:
+        dnssvr = list(value['ip'])
+        while dnssvr:
+            ip = dnssvr.pop()
+            if ip.lower() == 'dhcp':
+                dhcp_dnssvr = getdns()
+                dnssvr += dhcp_dnssvr
+                continue
             server = value.copy()
             server['ip'] = ip
-            q = Queue()
-            t = threading.Thread(
-                target=lookup_upstream_worker,
-                args=(q, server),
-                kwargs={
-                    'proxy': proxy if server['proxy'] else None
-                }
-            )
-            t.daemon = True
-            t.start()
-            upstreams[name].append({
-                'queue': q,
-                'thread': t,
-                'count': 0,
-            })
+            service = create_dns_service(server, proxy)
+            upstreams[name].append(service)
 
     # rules
     globalvars.rules = OrderedDict()
@@ -149,12 +157,17 @@ def init_config(args):
                     name,
                     loader.url,
                 ))
-        logger.warn('Add rules %s - %s' % (name, loader))
+        logger.warn('Add rules "%s" - %s' % (name, loader))
         ab = Adblock(name)
         ab.create(loader)
+        rule_dns = [upstreams[dns] for dns in value['dns'] if dns in upstreams]
+        logger.info('Rule "%s" DNS server:' % name)
+        for dns_domain in rule_dns:
+            for dns_svr in dns_domain:
+                logger.info('\t%s' % dns_svr['server']['ip'])
         globalvars.rules[name] = {
             'rule': ab,
-            'upstreams': [upstreams[dns] for dns in value['dns'] if dns in upstreams],
+            'upstreams': rule_dns,
             'refresh': value['refresh'],
         }
 
