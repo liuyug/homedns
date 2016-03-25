@@ -238,6 +238,7 @@ def init_config(args):
                         domain['name'],
                         loader.url,
                     ))
+            logger.warn('Add domain %s - %s' % (domain['name'], loader))
             d = HostDomain(domain['name'])
             d.create(loader)
         elif domain['type'] == 'dns':
@@ -258,9 +259,9 @@ def init_config(args):
                         domain['name'],
                         loader.url,
                     ))
+            logger.warn('Add domain %s - %s' % (domain['name'], loader))
             d = Domain(domain['name'])
             d.create(loader)
-        logger.warn('Add domain %s - %s' % (domain['name'], loader))
         logger.debug('Records:\n\t' + '\n\t'.join(d.output_records()))
         globalvars.local_domains[domain['name']] = {
             'domain': d,

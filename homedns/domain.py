@@ -223,19 +223,19 @@ class HostDomain(Domain):
         self.loader = loader
         try:
             loader_io = loader.open(cache=cache)
+            for line in iter(loader_io.readline, ''):
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                ip, name = line.split()
+                dn = self.get_subdomain(name)
+                if ':' in ip:
+                    self.records[dn] += [dnslib.AAAA(ip)]
+                else:
+                    self.records[dn] += [dnslib.A(ip)]
         except Exception as err:
-            logger.error('Load %s error: %s' % (self, err))
+            logger.error('Load %s error: %s with "%s"' % (self, err, line))
             return
-        for line in iter(loader_io.readline, ''):
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            ip, name = line.split()
-            dn = self.get_subdomain(name)
-            if ':' in ip:
-                self.records[dn] += [dnslib.AAAA(ip)]
-            else:
-                self.records[dn] += [dnslib.A(ip)]
 
     def get_subdomain(self, subname):
         if subname == '@':

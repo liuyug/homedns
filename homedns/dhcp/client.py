@@ -16,7 +16,7 @@ class Client():
     client_addr = ('0.0.0.0', 68)
     sock = None
 
-    def __init__(self, timeout=5):
+    def __init__(self, timeout=10):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.settimeout(timeout)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
