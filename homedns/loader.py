@@ -26,20 +26,25 @@ logger = logging.getLogger(__name__)
 
 
 class BaseLoader(object):
-    def __init__(self, url, proxy=None):
-        bname = os.path.basename(url)
-        if bname == url:
-            self.url = os.path.join(globalvars.config_dir, bname)
+    def __init__(self, url, name=None, proxy=None):
+        parser = urlparse(url)
+        self.local = not parser.netloc
+
+        if self.local:
+            bname = os.path.basename(url)
+            if bname == url:
+                self.url = os.path.join(globalvars.config_dir, bname)
+            else:
+                self.url = os.path.abspath(url)
         else:
             self.url = url
-        cache_dir = os.path.join(globalvars.config_dir, 'cache')
-        if not os.path.exists(cache_dir):
-            os.mkdir(cache_dir)
-        self.cache = os.path.join(cache_dir, bname)
-        self.proxy = proxy
+            cache_name = name or os.path.basename(url)
+            cache_dir = os.path.join(globalvars.config_dir, 'cache')
+            if not os.path.exists(cache_dir):
+                os.mkdir(cache_dir)
+            self.cache = os.path.join(cache_dir, cache_name)
+            self.proxy = proxy
 
-        parser = urlparse(self.url)
-        self.local = not parser.netloc
         self._last_update_time = 0
 
     def __repr__(self):
