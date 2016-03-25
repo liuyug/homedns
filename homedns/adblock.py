@@ -56,39 +56,39 @@ class Adblock(object):
         self.loader = loader
         try:
             loader_io = loader.open(cache=cache)
+            for line in iter(loader_io.readline, ''):
+                line = line.strip()
+                if not line or line[0] in ('!', '['):
+                    continue
+                if line.startswith('@@'):
+                    domain_list = self.whitelist
+                    line = line.lstrip('@@')
+                else:
+                    domain_list = self.blacklist
+                # remove protocols, http://
+                line = line.rpartition('://')[2]
+                # remove url, /url, /^
+                line = line.partition('/')[0]
+                # drop IP address, 1.1.1.1
+                if line.rpartition('.')[2].isdigit():
+                    continue
+                # non-domain
+                if '.' not in line:
+                    continue
+                # remove *
+                lp = line.partition('*')
+                line = lp[0] if '.' in lp[0] else lp[2]
+                # remove ||
+                for ch in ('||'):
+                    line = line.lstrip(ch)
+                # add '.' to match every item in domain
+                if line[0] != '.':
+                    line = '.' + line
+                # only add lower character
+                domain_list.add(line.lower())
         except Exception as err:
-            logger.error('Load %s error: %s' % (self, err))
+            logger.error('Load %s error: %s with "%s"' % (self, err, line))
             return
-        for line in iter(loader_io.readline, ''):
-            line = line.strip()
-            if not line or line[0] in ('!', '['):
-                continue
-            if line.startswith('@@'):
-                domain_list = self.whitelist
-                line = line.lstrip('@@')
-            else:
-                domain_list = self.blacklist
-            # remove protocols, http://
-            line = line.rpartition('://')[2]
-            # remove url, /url, /^
-            line = line.partition('/')[0]
-            # drop IP address, 1.1.1.1
-            if line.rpartition('.')[2].isdigit():
-                continue
-            # non-domain
-            if '.' not in line:
-                continue
-            # remove *
-            lp = line.partition('*')
-            line = lp[0] if '.' in lp[0] else lp[2]
-            # remove ||
-            for ch in ('||'):
-                line = line.lstrip(ch)
-            # add '.' to match every item in domain
-            if line[0] != '.':
-                line = '.' + line
-            # only add lower character
-            domain_list.add(line.lower())
 
     def _inList(self, domain_list, host):
         for domain in domain_list:

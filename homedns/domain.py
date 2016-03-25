@@ -227,7 +227,7 @@ class HostDomain(Domain):
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
-                ip, name = line.split()
+                ip, name = line.split()[:2]
                 dn = self.get_subdomain(name)
                 if ':' in ip:
                     self.records[dn] += [dnslib.AAAA(ip)]
