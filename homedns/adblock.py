@@ -102,9 +102,11 @@ class Adblock(object):
     def isBlack(self, host):
         return self._inList(self.blacklist, host)
 
-    def output_list(self, out):
-        out('White list: %s' % self.whitelist)
-        out('Black list: %s' % self.blacklist)
+    def output_list(self):
+        line = []
+        line.append('White: %s' % self.whitelist)
+        line.append('Black: %s' % self.blacklist)
+        return line
 
 if __name__ == '__main__':
     import argparse

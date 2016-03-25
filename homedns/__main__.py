@@ -111,8 +111,9 @@ def init_config(args):
     app_logger.addHandler(console_handler)
 
     app_logger.warn('HomeDNS v%s' % globalvars.version)
-    app_logger.warn('Config Dir: %s' % globalvars.config_dir)
+    app_logger.warn('Config file: %s' % args.config)
     app_logger.warn('Log file: %s' % log_file)
+    app_logger.debug('Config: %s', globalvars.config)
 
     global logger
     if '.' in __name__:
@@ -161,7 +162,8 @@ def init_config(args):
         ab = Adblock(name)
         ab.create(loader)
         rule_dns = [upstreams[dns] for dns in value['dns'] if dns in upstreams]
-        logger.info('Rule "%s" DNS server:' % name)
+        logger.debug('Block list:\n\t' + '\n\t'.join(ab.output_list()))
+        logger.info('DNS server:')
         for dns_domain in rule_dns:
             for dns_svr in dns_domain:
                 logger.info('\t%s' % dns_svr['server']['ip'])
@@ -222,6 +224,7 @@ def init_config(args):
             d = Domain(domain['name'])
             d.create(loader)
         logger.warn('Add domain %s - %s' % (domain['name'], loader))
+        logger.debug('Records:\n\t' + '\n\t'.join(d.output_records()))
         globalvars.local_domains[domain['name']] = {
             'domain': d,
             'refresh': domain['refresh'],
@@ -242,16 +245,6 @@ def run():
     args = parser.parse_args()
 
     init_config(args)
-
-    logger.debug('Config: %s', globalvars.config)
-    for value in globalvars.local_domains.values():
-        domain = value['domain']
-        logger.debug('Domain "%s" records:' % domain)
-        domain.output_records(logger.debug)
-    for value in globalvars.rules.values():
-        ab = value['rule']
-        logger.debug('Rule "%s":' % ab)
-        ab.output_list(logger.debug)
 
     logger.warn("Starting nameserver...")
 

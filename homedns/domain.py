@@ -113,19 +113,21 @@ class Domain(object):
             self.ptr_records[dn] = []
         return dn
 
-    def output_records(self, out):
+    def output_records(self):
+        line = []
         for name, rrs in self.records.items():
-            out('%s => %s' % (name, ', '.join([
+            line.append('%s => %s' % (name, ', '.join([
                 '%s(%s)' % (
                     rdata.__class__.__name__,
                     rdata) for rdata in rrs
             ])))
         for name, rrs in self.ptr_records.items():
-            out('%s => %s' % (name, ', '.join([
+            line.append('%s => %s' % (name, ', '.join([
                 '%s(%s)' % (
                     rdata.__class__.__name__,
                     rdata) for rdata in rrs
             ])))
+        return line
 
     def isPtrdomain(self, qn):
         return str(qn) in self.ptr_records
