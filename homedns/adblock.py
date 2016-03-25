@@ -61,7 +61,7 @@ class Adblock(object):
             return
         for line in iter(loader_io.readline, ''):
             line = line.strip()
-            if not line or line.startswith(('!', '[')):
+            if not line or line[0] in ('!', '['):
                 continue
             if line.startswith('@@'):
                 domain_list = self.whitelist
@@ -84,6 +84,9 @@ class Adblock(object):
             # remove ||
             for ch in ('||'):
                 line = line.lstrip(ch)
+            # add '.' to match every item in domain
+            if line[0] != '.':
+                line = '.' + line
             # only add lower character
             domain_list.add(line.lower())
 
