@@ -42,7 +42,7 @@ def ini_read(config_file):
         'proxy': cfg.getboolean(section, 'proxy'),
         'refresh': cfg.getint(section, 'refresh'),
     }
-    section = cfg.get('smartdns', 'proxy')
+    section = 'proxy'
     smartdns['proxy'] = {
         'type': cfg.get(section, 'type'),
         'ip': cfg.get(section, 'ip'),
@@ -80,50 +80,89 @@ def ini_read(config_file):
 
 
 def ini_write(config, config_file):
-    cfg = ConfigParser()
-    cfg.add_section('log')
-    cfg.set('log', 'file', config['log']['file'])
-    cfg.set('log', 'level', str(config['log']['level']))
-    cfg.add_section('server')
-    cfg.set('server', 'protocols', ','.join(config['server']['protocols']))
-    cfg.set('server', 'listen_ip', config['server']['listen_ip'])
-    cfg.set('server', 'listen_port', str(config['server']['listen_port']))
-    cfg.set('server', 'search', ','.join(config['server']['search']))
-    cfg.set('server', 'allowed_hosts', ','.join(config['server']['allowed_hosts']))
-    cfg.add_section('smartdns')
-    cfg.set('smartdns', 'rules', ','.join([x['name'] for x in config['smartdns']['rules']]))
+    line = []
+    line.append('[log]')
+    line.append('%s = %s' % ('file', config['log']['file']))
+    line.append('%s = %s' % ('level', config['log']['level']))
+    line.append('')
+
+    line.append('[server]')
+    line.append('# 协议类型: TCP, UDP')
+    line.append('%s = %s' % ('protocols', ','.join(config['server']['protocols'])))
+    line.append('# 服务地址和端口')
+    line.append('%s = %s' % ('listen_ip', config['server']['listen_ip']))
+    line.append('%s = %s' % ('listen_port', config['server']['listen_port']))
+    line.append('# 搜索范围，本地还是远端: local, upstream')
+    line.append('%s = %s' % ('search', ','.join(config['server']['search'])))
+    line.append('# 允许访问的客户端范围: 192.168.1.0/24, 192.1682.10-100, 192.168.3.*')
+    line.append('%s = %s' % ('allowed_hosts', ','.join(config['server']['allowed_hosts'])))
+    line.append('')
+
+    line.append('[smartdns]')
+    line.append('# DNS 匹配规则, 按顺序匹配. 具体配置在 [rules_名字] 中')
+    line.append('%s = %s' % ('rules', ','.join([x['name'] for x in config['smartdns']['rules']])))
+    line.append('# 劫持 DNS 服务: _ldap._tcp, ...')
+    line.append('%s = %s' % ('hack_srv', ','.join(config['smartdns']['hack_srv'])))
+    line.append('')
+
     for rule in config['smartdns']['rules']:
-        section = 'rules_' + rule['name']
-        cfg.add_section(section)
-        cfg.set(section, 'url', rule['url'])
-        cfg.set(section, 'proxy', str(rule['proxy']))
-        cfg.set(section, 'refresh', str(rule['refresh']))
-        cfg.set(section, 'dns', ','.join(rule['dns']))
-    cfg.set('smartdns', 'hack_srv', ','.join(config['smartdns']['hack_srv']))
-    cfg.add_section('bogus_nxdomain')
-    cfg.set('bogus_nxdomain', 'url', config['smartdns']['bogus_nxdomain']['url'])
-    cfg.set('bogus_nxdomain', 'proxy', str(config['smartdns']['bogus_nxdomain']['proxy']))
-    cfg.set('bogus_nxdomain', 'refresh', str(config['smartdns']['bogus_nxdomain']['refresh']))
-    cfg.set('smartdns', 'proxy', 'proxy')
-    cfg.add_section('proxy')
-    cfg.set('proxy', 'type', config['smartdns']['proxy']['type'])
-    cfg.set('proxy', 'ip', config['smartdns']['proxy']['ip'])
-    cfg.set('proxy', 'port', str(config['smartdns']['proxy']['port']))
+        line.append('[rules_%s]' % rule['name'])
+        line.append('# 配置文件位置, 本地或远端 URL')
+        line.append('%s = %s' % ('url', rule['url']))
+        line.append('# 从 URL 下载时是否使用代理, Ture/False')
+        line.append('%s = %s' % ('proxy', rule['proxy']))
+        line.append('# 文件自动更新时间间隔')
+        line.append('%s = %s' % ('refresh', rule['refresh']))
+        line.append('# 规则所使用的 DNS, 具体配置在 [dns_名字] 中')
+        line.append('%s = %s' % ('dns', ','.join(rule['dns'])))
+        line.append('')
+
     for name, value in config['smartdns']['upstreams'].items():
-        section = 'dns_' + name
-        cfg.add_section(section)
-        cfg.set(section, 'ip', ','.join(value['ip']))
-        cfg.set(section, 'port', str(value['port']))
-        cfg.set(section, 'timeout', str(value['timeout']))
-        cfg.set(section, 'proxy', str(value['proxy']))
-    cfg.add_section('domains')
-    cfg.set('domains', 'domain', ','.join([x['name'] for x in config['domains']]))
+        line.append('[dns_%s]' % name)
+        line.append('# 地址和端口, 如果 IP 为 DHCP, 则从 DHCP 服务器获取 DNS 地址')
+        line.append('%s = %s' % ('ip', ','.join(value['ip'])))
+        line.append('%s = %s' % ('port', value['port']))
+        line.append('# 连接超时时间')
+        line.append('%s = %s' % ('timeout', value['timeout']))
+        line.append('# 是否使用代理, True/False')
+        line.append('%s = %s' % ('proxy', value['proxy']))
+        line.append('')
+
+    line.append('[bogus_nxdomain]')
+    line.append('# bogus 文件位置, 本地或远端 URL')
+    line.append('%s = %s' % ('url', config['smartdns']['bogus_nxdomain']['url']))
+    line.append('# 从 URL 下载时是否使用代理, Ture/False')
+    line.append('%s = %s' % ('proxy', config['smartdns']['bogus_nxdomain']['proxy']))
+    line.append('# 文件自动更新时间间隔')
+    line.append('%s = %s' % ('refresh', config['smartdns']['bogus_nxdomain']['refresh']))
+    line.append('')
+
+    line.append('[proxy]')
+    line.append('# 代理类型, SOCKS5/HTTP')
+    line.append('%s = %s' % ('type', config['smartdns']['proxy']['type']))
+    line.append('# 服务器地址和端口')
+    line.append('%s = %s' % ('ip', config['smartdns']['proxy']['ip']))
+    line.append('%s = %s' % ('port', config['smartdns']['proxy']['port']))
+    line.append('')
+
+    line.append('[domains]')
+    line.append('# 本地域, 支持 DNS域记录和 hosts 文件格式, 具体配置在 [domain_名字] 中')
+    line.append('%s = %s' % ('domain', ','.join([x['name'] for x in config['domains']])))
+    line.append('')
+
     for domain in config['domains']:
-        section = 'domain_' + domain['name']
-        cfg.add_section(section)
-        cfg.set(section, 'name', domain['name'])
-        cfg.set(section, 'url', domain['url'])
-        cfg.set(section, 'proxy', str(domain['proxy']))
-        cfg.set(section, 'type', domain['type'])
-        cfg.set(section, 'refresh', str(domain['refresh']))
-    cfg.write(open(config_file, 'w'))
+        line.append('[domain_%s]' % domain['name'])
+        line.append('# 域名')
+        line.append('%s = %s' % ('name', domain['name']))
+        line.append('# 域文件位置, 本地或远端 URL')
+        line.append('%s = %s' % ('url', domain['url']))
+        line.append('# 从 URL 下载时是否使用代理, Ture/False')
+        line.append('%s = %s' % ('proxy', domain['proxy']))
+        line.append('# 域类型, dns/hosts')
+        line.append('%s = %s' % ('type', domain['type']))
+        line.append('# 文件自动更新时间间隔')
+        line.append('%s = %s' % ('refresh', domain['refresh']))
+        line.append('')
+
+    with open(config_file, 'w') as f:
+        f.write('\n'.join(line))
