@@ -148,7 +148,7 @@ def init_config(args):
         logger.error('Load %s error: %s' % (name, err))
     for line in iter(loader_io.readline, ''):
         line = line.strip()
-        if line.startswith('#'):
+        if not line or line.startswith('#'):
             continue
         if '*' in line or '-' in line:
             globalvars.bogus_nxdomain.add(netaddr.IPGlob(line))
