@@ -60,7 +60,8 @@ def getdns(iface=None, loop=1):
     logger.debug('send %s %s' % (hex(len(s_data)), binascii.b2a_hex(s_data)))
     r_data = client.send(s_data)
     count = 0
-    while count < loop:
+    sleep = 5
+    while True:
         try:
             r_data = client.send(s_data)
             break
@@ -69,8 +70,8 @@ def getdns(iface=None, loop=1):
             if count >= loop:
                 return []
             count += 1
-            logger.warn('Wait 5sec to retry...(%s)' % count)
-            time.sleep(5)
+            logger.warn('Wait %s seconds to retry...(%s)' % (sleep, count))
+            time.sleep(sleep)
     logger.debug('recv %s %s' % (hex(len(r_data)), binascii.b2a_hex(r_data)))
     response = DHCPPacket.parse(r_data)
     logger.debug(response)

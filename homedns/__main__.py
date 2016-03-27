@@ -165,7 +165,7 @@ def init_config(args):
         while dnssvr:
             ip = dnssvr.pop()
             if ip.lower() == 'dhcp':
-                dhcp_dnssvr = getdns()
+                dhcp_dnssvr = getdns(loop=3)
                 dnssvr += dhcp_dnssvr
                 continue
             server = value.copy()
