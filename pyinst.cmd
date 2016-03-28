@@ -2,4 +2,4 @@ cls
 
 rmdir build /s /q
 
-pyinstaller --clean --noupx -y -c -p homedns -F homedns.py
+pyinstaller --icon App-browser.ico --clean --noupx --noconfirm --console --paths homedns --onefile homedns.py
