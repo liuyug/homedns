@@ -12,12 +12,15 @@ from .utils import getifaddrs, getdefaultiface, getifaces
 logger = logging.getLogger(__name__)
 
 
-class Client():
+class DHCPClient():
     server_addr = ('255.255.255.255', 67)
     client_addr = ('0.0.0.0', 68)
     sock = None
 
     def __init__(self, timeout=10):
+        self.create(timeout=timeout)
+
+    def create(self, timeout=10):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.settimeout(timeout)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -39,12 +42,15 @@ class Client():
         response, server = self.sock.recvfrom(8192)
         return response
 
+    def close(self):
+        self.sock.close()
 
-def getdns(iface=None, loop=1):
+
+def getdns(iface=None, retry=1):
     if not iface:
         iface = getdefaultiface()
     addrs = getifaddrs(iface)
-    client = Client()
+    client = DHCPClient()
     client.bindif(addr=addrs['AF_INET'][0]['addr'])
 
     request = DHCPPacket(
@@ -58,16 +64,16 @@ def getdns(iface=None, loop=1):
     ))
     s_data = request.pack()
     logger.debug('send %s %s' % (len(s_data), binascii.b2a_hex(s_data)))
-    r_data = client.send(s_data)
     count = 0
     sleep = 5
     while True:
         try:
             r_data = client.send(s_data)
+            client.close()
             break
         except socket.error as err:
             logger.error('getdns error: %s' % err)
-            if count >= loop:
+            if count >= retry:
                 return []
             count += 1
             logger.warn('Wait %s seconds to retry...(%s)' % (sleep, count))
