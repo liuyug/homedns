@@ -201,7 +201,7 @@ def init_config(args):
         logger.info('DNS server:')
         for dns_domain in rule_dns:
             for dns_svr in dns_domain:
-                logger.info('\t%s' % dns_svr['server']['ip'])
+                logger.warn('\t%s' % dns_svr['server']['ip'])
         globalvars.rules[name] = {
             'rule': ab,
             'upstreams': rule_dns,

@@ -59,13 +59,13 @@ class defaults():
             '114dns': {
                 'ip': ['114.114.114.114', '114.114.115.115'],
                 'port': 53,
-                'timeout': 5,
+                'timeout': 2,
                 'proxy': False,
             },
             'gdns': {
                 'ip': ['8.8.8.8', '8.8.4.4'],
                 'port': 53,
-                'timeout': 5,
+                'timeout': 2,
                 'proxy': True,
             },
         },
