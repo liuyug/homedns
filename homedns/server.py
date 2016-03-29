@@ -36,7 +36,7 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
         now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
         client_ip = self.client_address[0]
         client_port = self.client_address[1]
-        logger.info("%s request %s (%s %s):" % (
+        logger.warn("%s request %s (%s %s):" % (
             self.__class__.__name__[:3],
             now,
             client_ip, client_port,
