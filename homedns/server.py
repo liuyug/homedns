@@ -239,17 +239,18 @@ def dns_response(handler, data):
         return
     qn = request.q.qname
     qt = QTYPE[request.q.qtype]
-    logger.info('\tRequest: %s(%s)' % (qn, qt))
     logger.debug('\n' + str(request))
 
     local = False
     if 'local' in globalvars.config['server']['search']:
         local = lookup_local(handler, request)
-    if not local and 'upstream' in globalvars.config['server']['search']:
+    if local:
+        logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
+    elif 'upstream' in globalvars.config['server']['search']:
         qn2 = str(qn).rstrip('.')
         for name, param in globalvars.rules.items():
             if param['rule'].isBlock(qn2):
-                logger.warn('\tRequest(%s) is in "%s" list.' % (qn, name))
+                logger.warn('\tRequest "%s(%s)" is in "%s" list.' % (qn, qt, name))
                 for dns in param['upstreams']:
                     for value in dns:
                         value['queue'].put((handler, request))
