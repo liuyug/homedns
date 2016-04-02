@@ -7,19 +7,20 @@ import base64
 import os
 import os.path
 import time
-try:
-    from urlparse import urlparse
-    from urllib2 import urlopen, Request, build_opener
-    from StringIO import StringIO
-except:
-    from urllib.parse import urlparse
-    from urllib.request import urlopen, Request, build_opener
-    from io import StringIO
 
 import socks
 from sockshandler import SocksiPyHandler
 
 from . import globalvars
+
+if globalvars.py_version == 2:
+    from urlparse import urlparse
+    from urllib2 import urlopen, Request, build_opener
+    from StringIO import StringIO
+elif globalvars.py_version == 3:
+    from urllib.parse import urlparse
+    from urllib.request import urlopen, Request, build_opener
+    from io import StringIO
 
 
 logger = logging.getLogger(__name__)

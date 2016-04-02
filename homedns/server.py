@@ -12,11 +12,11 @@ import traceback
 import socks
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 
-from . import py_version, globalvars
+from . import globalvars
 
-if py_version == 3:
+if globalvars.py_version == 3:
     import socketserver
-elif py_version == 2:
+elif globalvars.py_version == 2:
     import SocketServer as socketserver
 
 

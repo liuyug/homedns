@@ -1,7 +1,15 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.20'
+import sys
+
+py_version = 2
+if sys.version_info.major == 3:
+    py_version = 3
+elif sys.version_info.major == 2:
+    py_version = 2
+
+version = '0.1.22'
 
 
 class defaults():

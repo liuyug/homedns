@@ -11,7 +11,7 @@ from collections import OrderedDict
 
 import netaddr
 
-from . import py_version, globalvars
+from . import globalvars
 from .server import UDPRequestHandler, TCPRequestHandler, lookup_upstream_worker
 from .domain import Domain, HostDomain
 from .loader import TxtLoader, JsonLoader
@@ -19,10 +19,10 @@ from .adblock import Adblock
 from .iniconfig import ini_read, ini_write
 from .dhcp import getdns
 
-if py_version == 3:
+if globalvars.py_version == 3:
     import socketserver
     from queue import Queue
-elif py_version == 2:
+elif globalvars.py_version == 2:
     import SocketServer as socketserver
     from Queue import Queue
 

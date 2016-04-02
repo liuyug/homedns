@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-try:
-    # py3
-    from configparser import ConfigParser
-except:
-    # py2
+from .globalvars import py_version
+
+if py_version == 2:
     from ConfigParser import ConfigParser
+elif py_version == 3:
+    from configparser import ConfigParser
 
 
 def ini_read(config_file):

@@ -7,7 +7,7 @@ import logging
 import time
 
 from .packet import DHCPPacket, MessageType, Option
-from .utils import getifaddrs, getdefaultiface, getifaces
+from ..interface import Interface
 
 logger = logging.getLogger(__name__)
 
@@ -47,20 +47,21 @@ class DHCPClient():
 
 
 def getdns(iface=None, retry=1):
+    interface = Interface()
     if not iface:
-        iface = getdefaultiface()
-    addrs = getifaddrs(iface)
+        iface = interface.gateway_iface
+    iface_info = interface.interfaces[iface]
     client = DHCPClient()
-    client.bindif(addr=addrs['AF_INET'][0]['addr'])
+    client.bindif(addr=iface_info['ipaddr'][0])
 
     request = DHCPPacket(
         MessageType.discover,
-        hwaddr=addrs['AF_LINK'][0]['addr'],
+        hwaddr=iface_info['macaddr'],
     )
     logger.debug('use interface: %s - %s (%s)' % (
         iface,
-        addrs['AF_INET'][0]['addr'],
-        addrs['AF_LINK'][0]['addr'],
+        iface_info['ipaddr'][0],
+        iface_info['macaddr'],
     ))
     s_data = request.pack()
     logger.debug('send %s %s' % (len(s_data), binascii.b2a_hex(s_data)))
