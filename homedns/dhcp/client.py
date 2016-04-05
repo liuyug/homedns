@@ -50,7 +50,9 @@ def getdns(iface=None, retry=1):
     interface = Interface()
     if not iface:
         iface = interface.gateway_iface
-    iface_info = interface.interfaces[iface]
+    iface_info = interface.interfaces.get(iface)
+    if not iface_info:
+        return []
     client = DHCPClient()
     client.bindif(addr=iface_info['ipaddr'][0])
 
@@ -97,15 +99,9 @@ if __name__ == '__main__':
     logging.basicConfig(format='%(message)s', level=logging.DEBUG)
 
     if args.ifaces:
-        ifaces = getifaces()
-        count = 0
-        for iface in ifaces:
-            addrs = []
-            for k, v in getifaddrs(iface).items():
-                if k in ['AF_INET', 'AF_INET6']:
-                    addrs.append(v[0]['addr'])
-            print('%2d %s: %s' % (count, iface, addrs))
-            count += 1
+        interface = Interface()
+        for iface in interface.interfaces.keys():
+            print(iface)
     elif args.dhcp:
         getdns(args.iface)
     else:

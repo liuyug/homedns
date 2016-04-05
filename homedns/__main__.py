@@ -202,8 +202,11 @@ def init_config(args):
         logger.debug('Block list:\n\t' + '\n\t'.join(ab.output_list()))
         logger.warn('with upstream server:')
         for dns_domain in rule_dns:
-            for dns_svr in dns_domain:
-                logger.warn('\t%s' % dns_svr['server']['ip'])
+            if dns_domain:
+                for dns_svr in dns_domain:
+                    logger.warn('\t%s' % dns_svr['server']['ip'])
+            else:
+                logger.error('*** Don\'t find upstream server!!! ***')
         globalvars.rules[name] = {
             'rule': ab,
             'upstreams': rule_dns,
