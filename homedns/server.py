@@ -7,6 +7,7 @@ import logging
 import logging.handlers
 import socket
 import struct
+import threading
 import traceback
 
 import socks
@@ -46,7 +47,6 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
             return
         try:
             data = self.get_data()
-            logger.debug('%s %s' % (len(data), binascii.b2a_hex(data)))
             dns_response(self, data)
         except Exception as err:
             traceback.print_exc()
@@ -62,19 +62,24 @@ class TCPRequestHandler(BaseRequestHandler):
             raise Exception("Wrong size of TCP packet")
         elif sz > len(data) - 2:
             raise Exception("Too big TCP packet")
+        logger.debug('%s %s' % (len(data), binascii.b2a_hex(data[2:])))
         return data[2:]
 
     def send_data(self, data):
         sz = bytes(binascii.a2b_hex(hex(len(data))[2:].zfill(4)))
+        logger.debug('%s %s' % (len(data), binascii.b2a_hex(data)))
         return self.request.sendall(sz + data)
 
 
 class UDPRequestHandler(BaseRequestHandler):
 
     def get_data(self):
-        return self.request[0].strip()
+        data = self.request[0].strip()
+        logger.debug('%s %s' % (len(data), binascii.b2a_hex(data)))
+        return data
 
     def send_data(self, data):
+        logger.debug('%s %s' % (len(data), binascii.b2a_hex(data)))
         return self.request[1].sendto(data, self.client_address)
 
 
@@ -190,7 +195,7 @@ def lookup_upstream_worker(queue, server, proxy=None):
     use TCP mode when proxy enable
     """
     while True:
-        handler, request = queue.get()
+        handler, request, event = queue.get()
         try:
             r_data = do_lookup_upstream(
                 request.pack(),
@@ -229,6 +234,7 @@ def lookup_upstream_worker(queue, server, proxy=None):
             frm = '%s:%s' % (server['ip'], server['port'])
             logger.error('\tError when lookup from %s: %s' % (frm, err))
         queue.task_done()
+        event.set()
 
 
 def dns_response(handler, data):
@@ -251,10 +257,18 @@ def dns_response(handler, data):
         for name, param in globalvars.rules.items():
             if param['rule'].isBlock(qn2):
                 logger.warn('\tRequest "%s(%s)" is in "%s" list.' % (qn, qt, name))
+                events = []
                 for dns in param['upstreams']:
                     for value in dns:
-                        value['queue'].put((handler, request))
+                        event = threading.Event()
+                        event.clear()
+                        events.append((event, value['server']['timeout'] + 2))
+                        value['queue'].put((handler, request, event))
                         value['count'] += 1
+                while events:
+                    event, timeout = events.pop()
+                    event.wait(timeout)
+                # only use first matching rule
                 break
     # update
     for value in globalvars.rules.values():
