@@ -62,6 +62,7 @@ def main():
     parser.add_argument('-v', '--verbose', help='verbose help',
                         action='count', default=0)
     parser.add_argument('--user-agent', help='http user agent')
+    parser.add_argument('--dns-server', help='use dns server or use default')
     parser.add_argument('--proxy', help='proxy server, socks5://127.0.0.1:1080')
     parser.add_argument(
         '--engine',
@@ -78,20 +79,17 @@ def main():
 
     subdomains = set()
     # domain server
-    domain_dns = []
-    iface = Interface()
-    default_dns = iface.get_dnserver()
+    if args.dns_server:
+        server_ip = args.dns_server
+    else:
+        iface = Interface()
+        default_dns = iface.get_dnserver() or ['114.114.114.114', '114.114.115.115']
+        server_ip = default_dns[0]
     server_port = 53
     # find domain from domain server
     for qtype in ['NS', 'MX', 'A']:
         try:
             q = DNSRecord(q=DNSQuestion(args.domain, getattr(QTYPE, qtype)))
-            if domain_dns:
-                server_ip = domain_dns[0]
-            elif default_dns:
-                server_ip = default_dns[0]
-            else:
-                server_ip = '114.114.114.114'
             print('Search %s from %s: ' % (qtype, server_ip))
             a_pkt = sendto_upstream(q.pack(), server_ip, server_port, timeout=5)
             a = DNSRecord.parse(a_pkt)
@@ -103,7 +101,6 @@ def main():
             rqt = QTYPE[r.rtype]
             if rqt in ['NS']:
                 rqn = rqn.rstrip('.')
-                domain_dns.append(rqn)
                 subdomains.add(rqn)
             elif rqt in ['MX']:
                 rqn = rqn.rpartition(' ')[2].rstrip('.')
