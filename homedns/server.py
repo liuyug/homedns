@@ -127,9 +127,9 @@ def lookup_local(handler, request):
     return is_local
 
 
-def do_lookup_upstream(data, dest, port=53,
-                       tcp=False, timeout=None, ipv6=False,
-                       proxy=None):
+def sendto_upstream(data, dest, port=53,
+                    tcp=False, timeout=None, ipv6=False,
+                    proxy=None):
     """
         Send packet to nameserver and return response through proxy
         proxy_type: SOCKS5, SOCKS4, HTTP
@@ -193,7 +193,7 @@ def lookup_upstream_worker(queue, server, proxy=None):
     while True:
         handler, request, event = queue.get()
         try:
-            r_data = do_lookup_upstream(
+            r_data = sendto_upstream(
                 request.pack(),
                 server['ip'],
                 server['port'],
