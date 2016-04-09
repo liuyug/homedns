@@ -20,6 +20,7 @@ class Interface(InterfaceBase):
             iface['ipaddr'] = [addr for addr in adapter.addrUnicast]
             iface['dhcpserver'] = [addr for addr in adapter.addrDhcp]
             iface['gateway'] = [addr for addr in adapter.addrGateway]
+            iface['dnserver'] = [addr for addr in adapter.addrDnsServer]
             if (iface['status'] and
                     iface['gateway'] and iface['ipaddr'] and
                     adapter.ipv4Metric < min_metric):
