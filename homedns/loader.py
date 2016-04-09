@@ -8,19 +8,14 @@ import os
 import os.path
 import time
 
+from six.moves.urllib.parse import urlparse
+from six.moves.urllib.request import urlopen, Request, build_opener
+from six.moves import cStringIO as StringIO
+
 import socks
 from sockshandler import SocksiPyHandler
 
 from . import globalvars
-
-if globalvars.py_version == 2:
-    from urlparse import urlparse
-    from urllib2 import urlopen, Request, build_opener
-    from StringIO import StringIO
-elif globalvars.py_version == 3:
-    from urllib.parse import urlparse
-    from urllib.request import urlopen, Request, build_opener
-    from io import StringIO
 
 
 logger = logging.getLogger(__name__)

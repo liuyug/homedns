@@ -1,12 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-from .globalvars import py_version
-
-if py_version == 2:
-    from ConfigParser import ConfigParser
-elif py_version == 3:
-    from configparser import ConfigParser
+from six.moves.configparser import ConfigParser
 
 
 def ini_read(config_file):

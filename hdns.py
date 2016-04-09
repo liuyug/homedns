@@ -2,6 +2,6 @@
 # -*- encoding:utf-8 -*-
 
 
-from homedns.__main__ import run
+from homedns.scripts.hdns import run
 
 run()

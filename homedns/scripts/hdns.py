@@ -9,22 +9,17 @@ import json
 import threading
 from collections import OrderedDict
 
+from six.moves import socketserver
+from six.moves.queue import Queue
 import netaddr
 
-from . import globalvars
-from .server import UDPRequestHandler, TCPRequestHandler, lookup_upstream_worker
-from .domain import Domain, HostDomain
-from .loader import TxtLoader, JsonLoader
-from .adblock import Adblock
-from .iniconfig import ini_read, ini_write
-from .dhcp import getdns
-
-if globalvars.py_version == 3:
-    import socketserver
-    from queue import Queue
-elif globalvars.py_version == 2:
-    import SocketServer as socketserver
-    from Queue import Queue
+from .. import globalvars
+from ..server import UDPRequestHandler, TCPRequestHandler, lookup_upstream_worker
+from ..domain import Domain, HostDomain
+from ..loader import TxtLoader, JsonLoader
+from ..adblock import Adblock
+from ..iniconfig import ini_read, ini_write
+from ..dhcp import getdns
 
 
 def create_dns_service(server, proxy):

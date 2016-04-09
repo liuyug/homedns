@@ -10,15 +10,11 @@ import struct
 import threading
 import traceback
 
+from six.moves import socketserver
 import socks
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 
 from . import globalvars
-
-if globalvars.py_version == 3:
-    import socketserver
-elif globalvars.py_version == 2:
-    import SocketServer as socketserver
 
 
 logger = logging.getLogger(__name__)
