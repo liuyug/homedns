@@ -90,11 +90,11 @@ def main():
     for qtype in ['NS', 'MX', 'A']:
         try:
             q = DNSRecord(q=DNSQuestion(args.domain, getattr(QTYPE, qtype)))
-            print('Search %s from %s: ' % (qtype, server_ip))
+            print('# Search record %s from %s: ' % (qtype, server_ip))
             a_pkt = sendto_upstream(q.pack(), server_ip, server_port, timeout=5)
             a = DNSRecord.parse(a_pkt)
         except socket.error as err:
-            print('\t%s' % err)
+            print('# \t%s' % err)
             continue
         for r in a.rr:
             rqn = str(r.rdata)
@@ -108,7 +108,7 @@ def main():
             else:
                 rqn = rqn.rstrip('.')
                 subdomains.add(rqn)
-            print('\t%s' % rqn)
+            print('%s' % rqn)
 
     # find domain from searching engine
     search_domain = SearchDomain(
@@ -117,6 +117,7 @@ def main():
         agent=args.user_agent,
         proxy=args.proxy,
     )
+    print('# Search subdomains of %s from %s' % (args.domain, args.engine))
     search_domain.run_once()
     subdomains |= set(search_domain.subdomains)
     if args.output:
