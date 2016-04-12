@@ -45,6 +45,7 @@ class defaults():
             'url': 'bogus-nxdomain.lst',
             'proxy': False,
             'refresh': 60 * 60 * 8,
+            'hack_ip': '',
         },
         'proxy': {
             # proxy type: SOCKS5, SOCKS4 or HTTP

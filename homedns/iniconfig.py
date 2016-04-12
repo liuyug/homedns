@@ -36,6 +36,7 @@ def ini_read(config_file):
         'url': cfg.get(section, 'url'),
         'proxy': cfg.getboolean(section, 'proxy'),
         'refresh': cfg.getint(section, 'refresh'),
+        'hack_ip': cfg.get(section, 'hack_ip'),
     }
     section = 'proxy'
     smartdns['proxy'] = {
@@ -130,6 +131,8 @@ def ini_write(config, config_file):
     line.append('%s = %s' % ('proxy', config['smartdns']['bogus_nxdomain']['proxy']))
     line.append('# 文件自动更新时间间隔')
     line.append('%s = %s' % ('refresh', config['smartdns']['bogus_nxdomain']['refresh']))
+    line.append('# 劫持 bogus')
+    line.append('%s = %s' % ('hack_ip', config['smartdns']['bogus_nxdomain']['hack_ip']))
     line.append('')
 
     line.append('[proxy]')

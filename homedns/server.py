@@ -12,6 +12,7 @@ import traceback
 
 from six.moves import socketserver
 import socks
+import dnslib
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 
 from . import globalvars
@@ -206,16 +207,26 @@ def lookup_upstream_worker(queue, server, proxy=None):
                 logger.info('\tReturn from %(ip)s:%(port)s:' % server)
                 bogus_rr = []
                 for r in reply.rr:
-                    rqn = str(r.rdata)
+                    rqn = r.rname
                     rqt = QTYPE[r.rtype]
-                    if rqt in ['A', 'AAAA'] and rqn in globalvars.bogus_nxdomain:
+                    if rqt in ['A', 'AAAA'] and str(r.rdata) in globalvars.bogus_nxdomain:
                         bogus_rr.append(r)
-                        logger.warn('\t*** Bogus Answer: %s(%s) ***' % (rqn, rqt))
+                        logger.warn('\t*** Bogus Answer: %s(%s) ***' % (r.rdata, rqt))
                     else:
-                        logger.info('\t\t%s(%s)' % (rqn, rqt))
+                        logger.info('\t\t%s(%s)' % (r.rdata, rqt))
                 if bogus_rr:
                     for r in bogus_rr:
                         reply.rr.remove(r)
+                    hack_ip = globalvars.config['smartdns']['bogus_nxdomain']['hack_ip']
+                    if hack_ip:
+                        rqt = 'AAAA' if ':' in hack_ip else 'A'
+                        hack_r = RR(
+                            rname=rqn,
+                            rtype=getattr(QTYPE, rqt),
+                            rclass=1, ttl=60 * 5,
+                            rdata=getattr(dnslib, rqt)(hack_ip),
+                        )
+                        reply.rr.append(hack_r)
                     reply.set_header_qa()
                 logger.debug('\n' + str(reply))
                 handler.send_data(reply.pack())
