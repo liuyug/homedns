@@ -46,7 +46,7 @@ class Adblock(object):
         if not loader:
             loader = self.loader
         self.updating = True
-        logger.error('Update rules %s', loader)
+        logger.warn('Update rules %s', loader)
         self.blacklist = set()
         self.whitelist = set()
         self.create(loader, cache=cache)
@@ -55,6 +55,7 @@ class Adblock(object):
     def create(self, loader, cache=True):
         self.loader = loader
         try:
+            line = None
             loader_io = loader.open(cache=cache)
             for line in iter(loader_io.readline, ''):
                 line = line.strip()

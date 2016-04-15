@@ -10,30 +10,15 @@ import threading
 from collections import OrderedDict
 
 from six.moves import socketserver
-from six.moves.queue import Queue
 import netaddr
 
 from .. import globalvars
-from ..server import UDPRequestHandler, TCPRequestHandler, lookup_upstream_worker
+from ..server import UDPRequestHandler, TCPRequestHandler
 from ..domain import Domain, HostDomain
 from ..loader import TxtLoader, JsonLoader
 from ..adblock import Adblock
 from ..iniconfig import ini_read, ini_write
 from ..dhcp import getdns
-
-
-def create_dns_service(server, proxy):
-    q = Queue()
-    t = threading.Thread(
-        target=lookup_upstream_worker,
-        args=(q, server),
-        kwargs={
-            'proxy': proxy if server['proxy'] else None
-        }
-    )
-    t.daemon = True
-    t.start()
-    return {'queue': q, 'thread': t, 'count': 0, 'server': server}
 
 
 def init_config(args):
@@ -159,7 +144,7 @@ def init_config(args):
 
     # upstream dns server
     upstreams = globalvars.upstreams = {}
-    logger.warn('Create DNS Services:')
+    logger.warn('Find DNS Groups:')
     for name, value in globalvars.config['smartdns']['upstreams'].items():
         upstreams[name] = []
         dnssvr = list(value['ip'])
@@ -174,9 +159,9 @@ def init_config(args):
                 continue
             server = value.copy()
             server['ip'] = ip
-            logger.warn('\t%s' % ip)
-            service = create_dns_service(server, proxy)
-            upstreams[name].append(service)
+            server['priority'] = 50
+            upstreams[name].append(server)
+        logger.warn('\t%s: %s' % (name, [dns['ip'] for dns in upstreams[name]]))
 
     # rules
     globalvars.rules = OrderedDict()
@@ -201,18 +186,12 @@ def init_config(args):
         logger.warn('Add rules "%s" - %s' % (name, loader))
         ab = Adblock(name)
         ab.create(loader)
-        rule_dns = [upstreams[dns] for dns in rule['dns'] if dns in upstreams]
-        logger.debug('Block list:\n\t' + '\n\t'.join(ab.output_list()))
-        logger.warn('with upstream server:')
-        for dns_domain in rule_dns:
-            if dns_domain:
-                for dns_svr in dns_domain:
-                    logger.warn('\t%s' % dns_svr['server']['ip'])
-            else:
-                logger.error('*** Don\'t find upstream server!!! ***')
+        dns_group = [dns for dns in rule['dns'] if dns in upstreams]
+        logger.debug('\tblock list:\n\t\t' + '\n\t\t'.join(ab.output_list()))
+        logger.warn('\twith DNS group: %s' % dns_group)
         globalvars.rules[name] = {
             'rule': ab,
-            'upstreams': rule_dns,
+            'upstreams': dns_group,
             'refresh': rule['refresh'],
         }
 

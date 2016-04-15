@@ -207,7 +207,7 @@ class Domain(object):
         if not loader:
             loader = self.loader
         self.updating = True
-        logger.error('Update domain %s', loader)
+        logger.warn('Update domain %s', loader)
         self.ptr_records = {}
         self.records = {}
         self.create(loader, cache)

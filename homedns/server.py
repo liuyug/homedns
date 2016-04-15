@@ -7,7 +7,6 @@ import logging
 import logging.handlers
 import socket
 import struct
-import threading
 import traceback
 
 from six.moves import socketserver
@@ -187,61 +186,57 @@ def sendto_upstream(data, dest, port=53,
     return response
 
 
-def lookup_upstream_worker(queue, server, proxy=None):
+def lookup_upstream_worker(request, server, proxy):
     """
     use TCP mode when proxy enable
     """
-    while True:
-        handler, request, event = queue.get()
-        try:
-            r_data = sendto_upstream(
-                request.pack(),
-                server['ip'],
-                server['port'],
-                tcp=server['proxy'],
-                timeout=server['timeout'],
-                proxy=proxy,
-            )
-            reply = DNSRecord.parse(r_data)
-            if reply.rr:
-                logger.info('\tReturn from %(ip)s:%(port)s:' % server)
-                bogus_rr = []
-                for r in reply.rr:
-                    rqn = r.rname
-                    rqt = QTYPE[r.rtype]
-                    if rqt in ['A', 'AAAA'] and str(r.rdata) in globalvars.bogus_nxdomain:
-                        bogus_rr.append(r)
-                        logger.warn('\t*** Bogus Answer: %s(%s) ***' % (r.rdata, rqt))
-                    else:
-                        logger.info('\t\t%s(%s)' % (r.rdata, rqt))
-                if bogus_rr:
-                    for r in bogus_rr:
-                        reply.rr.remove(r)
-                    hack_ip = globalvars.config['smartdns']['bogus_nxdomain']['hack_ip']
-                    if hack_ip:
-                        rqt = 'AAAA' if ':' in hack_ip else 'A'
-                        hack_r = RR(
-                            rname=rqn,
-                            rtype=getattr(QTYPE, rqt),
-                            rclass=1, ttl=60 * 5,
-                            rdata=getattr(dnslib, rqt)(hack_ip),
-                        )
-                        reply.rr.append(hack_r)
-                    reply.set_header_qa()
-                logger.debug('\n' + str(reply))
-                handler.send_data(reply.pack())
-        except socket.error as err:
-            frm = '%s:%s' % (server['ip'], server['port'])
-            if server['proxy']:
-                frm += ' (with proxy %(ip)s:%(port)s)' % proxy
-            logger.error('\tError when lookup from %s: %s' % (frm, err))
-        except Exception as err:
-            if logger.isEnabledFor(logging.DEBUG):
-                traceback.print_exc()
-            frm = '%s:%s' % (server['ip'], server['port'])
-            logger.error('\tError when lookup from %s: %s' % (frm, err))
-        queue.task_done()
-        event.set()
+    reply = None
+    try:
+        r_data = sendto_upstream(
+            request.pack(),
+            server['ip'],
+            server['port'],
+            tcp=server['proxy'],
+            timeout=server['timeout'],
+            proxy=proxy if server['proxy'] else None,
+        )
+        reply = DNSRecord.parse(r_data)
+        if reply.rr:
+            logger.info('\tReturn from %(ip)s:%(port)s:' % server)
+            bogus_rr = []
+            for r in reply.rr:
+                rqn = r.rname
+                rqt = QTYPE[r.rtype]
+                if rqt in ['A', 'AAAA'] and str(r.rdata) in globalvars.bogus_nxdomain:
+                    bogus_rr.append(r)
+                    logger.warn('\t*** Bogus Answer: %s(%s) ***' % (r.rdata, rqt))
+                else:
+                    logger.info('\t\t%s(%s)' % (r.rdata, rqt))
+            if bogus_rr:
+                for r in bogus_rr:
+                    reply.rr.remove(r)
+                hack_ip = globalvars.config['smartdns']['bogus_nxdomain']['hack_ip']
+                if hack_ip:
+                    rqt = 'AAAA' if ':' in hack_ip else 'A'
+                    hack_r = RR(
+                        rname=rqn,
+                        rtype=getattr(QTYPE, rqt),
+                        rclass=1, ttl=60 * 5,
+                        rdata=getattr(dnslib, rqt)(hack_ip),
+                    )
+                    reply.rr.append(hack_r)
+                reply.set_header_qa()
+    except socket.error as err:
+        frm = '%s:%s' % (server['ip'], server['port'])
+        if server['proxy']:
+            frm += ' (with proxy %(ip)s:%(port)s)' % proxy
+        logger.error('\tError when lookup from %s: %s' % (frm, err))
+    except Exception as err:
+        if logger.isEnabledFor(logging.DEBUG):
+            traceback.print_exc()
+        frm = '%s:%s' % (server['ip'], server['port'])
+        logger.error('\tError when lookup from %s: %s' % (frm, err))
+    return reply
 
 
 def dns_response(handler, data):
@@ -260,21 +255,27 @@ def dns_response(handler, data):
     if local:
         logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
     elif 'upstream' in globalvars.config['server']['search']:
+        proxy = globalvars.config['smartdns']['proxy']
         qn2 = str(qn).rstrip('.')
         for name, param in globalvars.rules.items():
             if param['rule'].isBlock(qn2):
                 logger.warn('\tRequest "%s(%s)" is in "%s" list.' % (qn, qt, name))
-                events = []
-                for dns in param['upstreams']:
-                    for value in dns:
-                        event = threading.Event()
-                        event.clear()
-                        events.append((event, value['server']['timeout'] + 2))
-                        value['queue'].put((handler, request, event))
-                        value['count'] += 1
-                while events:
-                    event, timeout = events.pop()
-                    event.wait(timeout)
+                best_dns = None
+                servers = []
+                for group in param['upstreams']:
+                    servers.extend(globalvars.upstreams[group])
+                for server in servers:
+                    if best_dns is None:
+                        best_dns = server
+                    elif best_dns['priority'] < server['priority']:
+                        best_dns = server
+                reply = lookup_upstream_worker(request, best_dns, proxy)
+                if reply:
+                    best_dns['priority'] += (10 if best_dns['priority'] < 100 else 0)
+                    logger.debug('\n' + str(reply))
+                    handler.send_data(reply.pack())
+                else:
+                    best_dns['priority'] += (-10 if best_dns['priority'] > 0 else -1)
                 # only use first matching rule
                 break
     # update
