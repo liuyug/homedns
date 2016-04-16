@@ -53,18 +53,18 @@ def getdns(iface=None, retry=1):
     iface_info = interface.interfaces.get(iface)
     if not iface_info:
         return []
-    client = DHCPClient()
-    client.bindif(addr=iface_info['ipaddr'][0])
-
-    request = DHCPPacket(
-        MessageType.discover,
-        hwaddr=iface_info['macaddr'],
-    )
     logger.debug('use interface: %s - %s (%s)' % (
         iface,
         iface_info['ipaddr'][0],
         iface_info['macaddr'],
     ))
+
+    client = DHCPClient()
+    client.bindif(addr=iface_info['ipaddr'][0])
+    request = DHCPPacket(
+        MessageType.discover,
+        hwaddr=iface_info['macaddr'],
+    )
     s_data = request.pack()
     logger.debug('send %s %s' % (len(s_data), binascii.b2a_hex(s_data)))
     count = 0

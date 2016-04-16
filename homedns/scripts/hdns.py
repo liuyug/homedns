@@ -144,6 +144,7 @@ def init_config(args):
 
     # upstream dns server
     upstreams = globalvars.upstreams = {}
+    dhcp_dnssvr = []
     logger.warn('Find DNS Groups:')
     for name, value in globalvars.config['smartdns']['upstreams'].items():
         upstreams[name] = []
@@ -151,17 +152,22 @@ def init_config(args):
         while dnssvr:
             ip = dnssvr.pop()
             if ip.lower() == 'dhcp':
-                dhcp_dnssvr = getdns(retry=3)
                 if not dhcp_dnssvr:
-                    logger.error('\tCould not catch DNS server from DHCP!!! Use default DNS server, "114.114.114.114" and "114.114.115.115".')
-                    dhcp_dnssvr = ['114.114.114.114', '114.114.115.115']
+                    dhcp_dnssvr = getdns(retry=3)
+                    if not dhcp_dnssvr:
+                        logger.error('\tCould not catch DNS server from DHCP!!! Use default DNS server, "114.114.114.114" and "114.114.115.115".')
+                        dhcp_dnssvr = ['114.114.114.114', '114.114.115.115']
                 dnssvr += dhcp_dnssvr
                 continue
             server = value.copy()
             server['ip'] = ip
-            server['priority'] = 50
             upstreams[name].append(server)
-        logger.warn('\t%s: %s' % (name, [dns['ip'] for dns in upstreams[name]]))
+
+        [dns for dns in upstreams[name]],
+        logger.warn('\t%s: %s' % (
+            name,
+            ['%(ip)s:%(port)s(%(priority)s)' % dns for dns in upstreams[name]],
+        ))
 
     # rules
     globalvars.rules = OrderedDict()

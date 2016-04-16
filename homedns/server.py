@@ -122,7 +122,7 @@ def lookup_local(handler, request):
             logger.info('\tReturn from LOCAL:\n%s' % '\n'.join(lines))
             logger.debug('\n' + str(reply))
         else:
-            logger.info('\tReturn from LOCAL: N/A')
+            logger.info('\tReturn from LOCAL: \n\t\tN/A')
         handler.send_data(reply.pack())
     return is_local
 
@@ -145,16 +145,8 @@ def sendto_upstream(data, dest, port=53,
                 proxy['ip'],
                 proxy['port'],
             )
-            message = '\tForward to server %s:%s with TCP mode' % (dest, port)
-            message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
-            logger.info(message)
         else:
             sock = socket.socket(inet, stype)
-            message = '\tForward to server %s:%s with %s mode' % (
-                dest, port,
-                'TCP' if tcp else 'UDP',
-            )
-            logger.info(message)
         return sock
 
     if ipv6:
@@ -186,12 +178,21 @@ def sendto_upstream(data, dest, port=53,
     return response
 
 
-def lookup_upstream_worker(request, server, proxy):
+def lookup_upstream(request, server, proxy):
     """
     use TCP mode when proxy enable
     """
     reply = None
     try:
+        message = '\tForward to server %(ip)s:%(port)s(%(priority)s)' % server
+        if server['proxy']:
+            message += ' with TCP mode'
+            if proxy:
+                message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
+        else:
+            message += ' with UDP mode'
+        logger.info(message)
+
         r_data = sendto_upstream(
             request.pack(),
             server['ip'],
@@ -226,6 +227,8 @@ def lookup_upstream_worker(request, server, proxy):
                     )
                     reply.rr.append(hack_r)
                 reply.set_header_qa()
+        else:
+            logger.info('\tReturn from %(ip)s:%(port)s: \n\t\tN/A' % server)
     except socket.error as err:
         frm = '%s:%s' % (server['ip'], server['port'])
         if server['proxy']:
@@ -269,9 +272,9 @@ def dns_response(handler, data):
                         best_dns = server
                     elif best_dns['priority'] < server['priority']:
                         best_dns = server
-                reply = lookup_upstream_worker(request, best_dns, proxy)
+                reply = lookup_upstream(request, best_dns, proxy)
                 if reply:
-                    best_dns['priority'] += (10 if best_dns['priority'] < 100 else 0)
+                    best_dns['priority'] += (5 if best_dns['priority'] < 100 else 0)
                     logger.debug('\n' + str(reply))
                     handler.send_data(reply.pack())
                 else:

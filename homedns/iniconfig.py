@@ -55,6 +55,7 @@ def ini_read(config_file):
             'port': cfg.getint(section, 'port'),
             'timeout': cfg.getint(section, 'timeout'),
             'proxy': cfg.getboolean(section, 'proxy'),
+            'priority': cfg.getint(section, 'priority'),
         }
     domains = []
     for name in strip_item(cfg.get('domains', 'domain').split(',')):
@@ -122,6 +123,8 @@ def ini_write(config, config_file):
         line.append('%s = %s' % ('timeout', value['timeout']))
         line.append('# 是否使用代理, True/False')
         line.append('%s = %s' % ('proxy', value['proxy']))
+        line.append('# 优先级')
+        line.append('%s = %s' % ('priority', value['priority']))
         line.append('')
 
     line.append('[bogus_nxdomain]')

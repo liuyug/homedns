@@ -21,8 +21,10 @@ class Interface(InterfaceBase):
             iface['dhcpserver'] = [addr for addr in adapter.addrDhcp]
             iface['gateway'] = [addr for addr in adapter.addrGateway]
             iface['dnserver'] = [addr for addr in adapter.addrDnsServer]
+            # ipv4 gateway
             if (iface['status'] and
-                    iface['gateway'] and iface['ipaddr'] and
+                    self.includeIPv4(iface['gateway']) and
+                    self.includeIPv4(iface['ipaddr']) and
                     adapter.ipv4Metric < min_metric):
                 min_metric = adapter.ipv4Metric
                 self.gateway_iface = adapter.name

@@ -62,12 +62,14 @@ class defaults():
                 'port': 53,
                 'timeout': 2,
                 'proxy': False,
+                'priority': 50,
             },
             'gdns': {
                 'ip': ['8.8.8.8', '8.8.4.4'],
                 'port': 53,
                 'timeout': 2,
                 'proxy': True,
+                'priority': 50,
             },
         },
     }
