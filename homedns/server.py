@@ -230,14 +230,14 @@ def lookup_upstream(request, server, proxy):
         else:
             logger.info('\tReturn from %(ip)s:%(port)s: \n\t\tN/A' % server)
     except socket.error as err:
-        frm = '%s:%s' % (server['ip'], server['port'])
+        frm = '%(ip)s:%(port)s(%(priority)s)' % server
         if server['proxy']:
             frm += ' (with proxy %(ip)s:%(port)s)' % proxy
         logger.error('\tError when lookup from %s: %s' % (frm, err))
     except Exception as err:
         if logger.isEnabledFor(logging.DEBUG):
             traceback.print_exc()
-        frm = '%s:%s' % (server['ip'], server['port'])
+        frm = '%(ip)s:%(port)s(%(priority)s)' % server
         logger.error('\tError when lookup from %s: %s' % (frm, err))
     return reply
 
