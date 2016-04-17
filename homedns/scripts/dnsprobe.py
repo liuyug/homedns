@@ -22,7 +22,7 @@ from ..interface import Interface
 from ..server import sendto_upstream
 
 
-version = '0.1.2'
+version = '0.1.3'
 logger = logging.getLogger(__name__)
 
 
@@ -63,6 +63,7 @@ def main():
                         action='count', default=0)
     parser.add_argument('--user-agent', help='http user agent')
     parser.add_argument('--dns-server', help='use dns server or use default')
+    parser.add_argument('--use-ns', action='store_true', help='use dns server or use default')
     parser.add_argument('--proxy', help='proxy server, socks5://127.0.0.1:1080')
     parser.add_argument(
         '--engine',
@@ -86,8 +87,20 @@ def main():
         default_dns = iface.get_dnserver() or ['114.114.114.114', '114.114.115.115']
         server_ip = default_dns[0]
     server_port = 53
+    if args.use_ns:
+        qtype = 'SOA'
+        q = DNSRecord(q=DNSQuestion(args.domain, getattr(QTYPE, qtype)))
+        a_pkt = sendto_upstream(q.pack(), server_ip, server_port, timeout=5)
+        a = DNSRecord.parse(a_pkt)
+        if a.rr:
+            rqn = str(a.rr[0].rdata.mname).rstrip('.')
+            server_ip = socket.gethostbyname(rqn)
+            print('Find primary DNS server: %s(%s)' % (rqn, server_ip))
+        else:
+            print('Failed to find NS record. Use default DNS server: %s.' % server_ip)
+
     # find domain from domain server
-    for qtype in ['NS', 'MX', 'A']:
+    for qtype in ['TXT', 'NS', 'MX', 'A']:
         try:
             q = DNSRecord(q=DNSQuestion(args.domain, getattr(QTYPE, qtype)))
             print('# Search record %s from %s: ' % (qtype, server_ip))
@@ -97,16 +110,15 @@ def main():
             print('# \t%s' % err)
             continue
         for r in a.rr:
-            rqn = str(r.rdata)
             rqt = QTYPE[r.rtype]
-            if rqt in ['NS']:
-                rqn = rqn.rstrip('.')
+            if rqt in ['A']:
+                rqn = str(r.rdata).rstrip('.')
                 subdomains.add(rqn)
-            elif rqt in ['MX']:
-                rqn = rqn.rpartition(' ')[2].rstrip('.')
-                subdomains.add(rqn)
+            elif rqt in ['TXT']:
+                rqn = str(r.rdata)
+                print(rqn)
             else:
-                rqn = rqn.rstrip('.')
+                rqn = str(r.rdata.label).rstrip('.')
                 subdomains.add(rqn)
             print('%s' % rqn)
 
