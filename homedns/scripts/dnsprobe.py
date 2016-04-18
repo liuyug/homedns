@@ -140,8 +140,10 @@ def main():
             elif rqt in ['NS', 'MX', 'CNAME']:
                 rqn = str(r.rdata.label).rstrip('.')
                 subdomains.add(rqn)
-            elif rqt in ['PTR']:
+            elif rqt in ['PTR', 'SOA', 'TXT']:
                 rqn = str(r.rdata)
+                logger.error('#   Ignore record %s: %s' % (rqt, rqn))
+                continue
             else:
                 logger.error('#   Ignore record %s' % rqt)
                 continue
