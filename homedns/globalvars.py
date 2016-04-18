@@ -62,6 +62,7 @@ class defaults():
                 'port': 53,
                 'timeout': 2,
                 'proxy': False,
+                'tcp': False,
                 'priority': 50,
             },
             'gdns': {
@@ -69,6 +70,7 @@ class defaults():
                 'port': 53,
                 'timeout': 2,
                 'proxy': True,
+                'tcp': True,
                 'priority': 50,
             },
         },

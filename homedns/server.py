@@ -186,19 +186,16 @@ def lookup_upstream(request, server, proxy):
     reply = None
     try:
         message = '\tForward to server %(ip)s:%(port)s(%(priority)s)' % server
-        if server['proxy']:
-            message += ' with TCP mode'
-            if proxy:
+        message += ' with %s mode' % ('TCP' if server['tcp'] else 'UDP')
+        if server['proxy'] and proxy:
                 message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
-        else:
-            message += ' with UDP mode'
         logger.info(message)
 
         r_data = sendto_upstream(
             request.pack(),
             server['ip'],
             server['port'],
-            tcp=server['proxy'],
+            tcp=server['tcp'],
             timeout=server['timeout'],
             proxy=proxy if server['proxy'] else None,
         )

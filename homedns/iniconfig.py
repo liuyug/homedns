@@ -55,6 +55,7 @@ def ini_read(config_file):
             'port': cfg.getint(section, 'port'),
             'timeout': cfg.getint(section, 'timeout'),
             'proxy': cfg.getboolean(section, 'proxy'),
+            'tcp': cfg.getboolean(section, 'tcp'),
             'priority': cfg.getint(section, 'priority'),
         }
     domains = []
@@ -123,6 +124,8 @@ def ini_write(config, config_file):
         line.append('%s = %s' % ('timeout', value['timeout']))
         line.append('# 是否使用代理, True/False')
         line.append('%s = %s' % ('proxy', value['proxy']))
+        line.append('# 是否使用 TCP 模式, True/False')
+        line.append('%s = %s' % ('tcp', value['tcp']))
         line.append('# 优先级')
         line.append('%s = %s' % ('priority', value['priority']))
         line.append('')
