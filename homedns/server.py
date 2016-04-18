@@ -164,11 +164,12 @@ def sendto_upstream(data, dest, port=53,
         sock.connect((dest, port))
         sock.sendall(data)
         response = sock.recv(8192)
-        length = struct.unpack("!H", bytes(response[:2]))[0]
-        while len(response) - 2 < length:
-            response += sock.recv(8192)
+        if response:
+            length = struct.unpack("!H", bytes(response[:2]))[0]
+            while len(response) - 2 < length:
+                response += sock.recv(8192)
+            response = response[2:]
         sock.close()
-        response = response[2:]
     else:
         if timeout is not None:
             sock.settimeout(timeout)
