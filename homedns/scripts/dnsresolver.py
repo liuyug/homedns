@@ -13,6 +13,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', action='version',
                         version='%%(prog)s %s' % version)
+    parser.add_argument('--timeout', default=5, help='socket timeout')
     parser.add_argument('domain', nargs='*', help='search domain')
     args = parser.parse_args()
 
@@ -21,14 +22,23 @@ def main():
         domains = args.domain
     else:
         domains = sys.stdin.readlines()
-    while domains:
-        domain = domains.pop().strip()
+    socket.setdefaulttimeout(float(args.timeout))
+    err_domains = []
+    while domains or err_domains:
+        if domains:
+            domain = domains.pop().strip()
+            count = 0
+        elif err_domains:
+            domain, count = err_domains.pop()
         if domain and not domain.startswith('#'):
             try:
                 host_ip = socket.gethostbyname(domain)
                 print('%s\t\t%s' % (host_ip, domain))
             except socket.error:
-                domains.insert(0, domain)
+                if count < 3:
+                    err_domains.append((domain, count + 1))
+                else:
+                    print('# Failed to get host %s' % domain)
 
 
 if __name__ == '__main__':
