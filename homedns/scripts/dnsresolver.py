@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--version', action='version',
                         version='%%(prog)s %s' % version)
     parser.add_argument('--timeout', default=5, help='socket timeout')
+    parser.add_argument('--hosts-cmd', action='store_true', help='output metasploit hosts command')
     parser.add_argument('domain', nargs='*', help='search domain')
     args = parser.parse_args()
 
@@ -33,7 +34,11 @@ def main():
         if domain and not domain.startswith('#'):
             try:
                 host_ip = socket.gethostbyname(domain)
-                print('%s\t\t%s' % (host_ip, domain))
+                if args.hosts_cmd:
+                    print('hosts -a %s' % host_ip)
+                    print('hosts -n %s %s' % (domain, host_ip))
+                else:
+                    print('%s\t\t%s' % (host_ip, domain))
             except socket.error:
                 if count < 3:
                     err_domains.append((domain, count + 1))
