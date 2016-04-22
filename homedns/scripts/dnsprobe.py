@@ -15,40 +15,32 @@ from six.moves.urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from dnslib.dns import DNSRecord, DNSQuestion, QTYPE, DNSError
 
-from webspider.spider import HandlerBase
+from webspider import spider
 from webspider.searchengine import getEngine
 
 from ..interface import Interface
 from ..server import sendto_upstream
 
 
-version = '0.1.3'
+version = '0.1.4'
 logger = logging.getLogger(__name__)
 
 
-class SearchDomain(HandlerBase):
+class SearchDomain(spider.HandlerBase):
     def __init__(self, engine, domain, max_pages=10, agent=None, proxy=None):
         super(SearchDomain, self).__init__(agent=agent, proxy=proxy)
         self.engine = getEngine(engine)
         self.domain = domain
         self.subdomains = []
         for page in range(max_pages):
-            self.engine.set_search(search='site:%s -inurl:www' % domain, page=page)
-            self.put(self.engine.get_url(), self.engine.get_data())
-
-    def find_urls(self, soup):
-        if self.engine.name == 'baidu':
-            return soup.find_all('a', class_='c-showurl')
-        elif self.engine.name == 'bing':
-            return soup.find_all('cite')
-        elif self.engine.name == 'google':
-            return soup.find_all('cite')
-        return []
+            self.engine.add_search(site=domain, page=page, inurl='-www')
+            self.put(self.engine.get_url(method='GET'))
 
     def handle(self, data):
         soup = BeautifulSoup(data, 'lxml')
-        for tag in self.find_urls(soup):
-            parse = urlparse('//%s' % tag.text, scheme='http')
+        for tag in self.engine.find_urltags(soup):
+            url = self.engine.get_tagurl(tag)
+            parse = urlparse(url)
             if (parse.netloc.endswith(self.domain) and
                     parse.netloc not in self.subdomains):
                 print(parse.netloc)
@@ -68,7 +60,6 @@ def main():
     dns_group.add_argument('--dns-server', help='DNS server or use system DNS server')
     dns_group.add_argument('--tcp', action='store_true', help='use TCP mode')
     dns_group.add_argument('--timeout', default=5, help='connection timeout. default is 5')
-    dns_group.add_argument('--use-ns', action='store_true', help='use DOMAIN dns server')
 
     search_group = parser.add_argument_group('Find subdomains from searching engine')
     search_group.add_argument(
@@ -95,26 +86,24 @@ def main():
         default_dns = iface.get_dnserver() or ['114.114.114.114', '114.114.115.115']
         server_ip = default_dns[0]
     server_port = 53
-    logger.warn('# Default DNS server: %s' % server_ip)
+    logger.warn('# DNS server: %s' % server_ip)
 
-    if args.use_ns:
-        try:
-            qtype = 'SOA'
-            q = DNSRecord(q=DNSQuestion(args.domain, getattr(QTYPE, qtype)))
-            a_pkt = sendto_upstream(
-                q.pack(), server_ip, server_port,
-                timeout=args.timeout
-            )
-            a = DNSRecord.parse(a_pkt)
-            if a.rr:
-                rqn = str(a.rr[0].rdata.mname).rstrip('.')
-                server_ip = socket.gethostbyname(rqn)
-                logger.warn('# Find primary DNS server: %s(%s)' % (rqn, server_ip))
-            else:
-                logger.warn('# Failed to find NS record. Use default DNS server: %s.' % server_ip)
-        except socket.error as err:
-            logger.error('Failed to find the dns server of %s: %s' % (args.domain, err))
-            return
+    try:
+        qtype = 'SOA'
+        q = DNSRecord(q=DNSQuestion(args.domain, getattr(QTYPE, qtype)))
+        a_pkt = sendto_upstream(
+            q.pack(), server_ip, server_port,
+            timeout=args.timeout
+        )
+        a = DNSRecord.parse(a_pkt)
+        if a.rr:
+            rqn = str(a.rr[0].rdata.mname).rstrip('.')
+            server_ip = socket.gethostbyname(rqn)
+            logger.warn('# Find primary DNS server: %s(%s)' % (rqn, server_ip))
+        else:
+            logger.warn('# Failed to find NS record. Use default DNS server: %s.' % server_ip)
+    except socket.error as err:
+        logger.error('Failed to find the dns server of %s: %s' % (args.domain, err))
     # find domain from domain server
     for qtype in ['AXFR', 'TXT', 'NS', 'MX', 'A', 'AAAA', 'CNAME']:
         try:
