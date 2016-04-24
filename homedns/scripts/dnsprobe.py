@@ -12,10 +12,8 @@ import logging
 import argparse
 
 from six.moves.urllib.parse import urlparse
-from bs4 import BeautifulSoup
 from dnslib.dns import DNSRecord, DNSQuestion, QTYPE, DNSError
 
-from webspider import spider
 from webspider.searchengine import getEngine
 
 from ..interface import Interface
@@ -24,27 +22,6 @@ from ..server import sendto_upstream
 
 version = '0.1.4'
 logger = logging.getLogger(__name__)
-
-
-class SearchDomain(spider.HandlerBase):
-    def __init__(self, engine, domain, max_pages=10, agent=None, proxy=None):
-        super(SearchDomain, self).__init__(agent=agent, proxy=proxy)
-        self.engine = getEngine(engine)
-        self.domain = domain
-        self.subdomains = []
-        for page in range(max_pages):
-            self.engine.add_search(site=domain, page=page, inurl='-www')
-            self.put(self.engine.get_url(method='GET'))
-
-    def handle(self, data):
-        soup = BeautifulSoup(data, 'lxml')
-        for tag in self.engine.find_urltags(soup):
-            url = self.engine.get_tagurl(tag)
-            parse = urlparse(url)
-            if (parse.netloc.endswith(self.domain) and
-                    parse.netloc not in self.subdomains):
-                print(parse.netloc)
-                self.subdomains.append(parse.netloc)
 
 
 def main():
@@ -68,7 +45,7 @@ def main():
         help='search engine',
     )
     search_group.add_argument('--user-agent', help='http user agent')
-    search_group.add_argument('--max-page', type=int, default=10, help='searching pages')
+    search_group.add_argument('--page-num', type=int, default=10, help='searching pages')
     search_group.add_argument('--proxy', help='proxy server, socks5://127.0.0.1:1080')
 
     parser.add_argument('domain', help='search domain')
@@ -144,18 +121,17 @@ def main():
     # find domain from searching engine
     if args.engine:
         logger.warn('#' * 80)
-        search_domain = SearchDomain(
-            args.engine, args.domain,
-            max_pages=args.max_page,
-            agent=args.user_agent,
-            proxy=args.proxy,
-        )
+        engine = getEngine(args.engine, agent=args.user_agent, proxy=args.proxy)
+        engine.addSearch(site=args.domain, inurl='-www')
+        engine.addSearch(page_max=args.page_num)
         logger.warn('# Search subdomains of %s from %s' % (args.domain, args.engine))
-        search_domain.run_once()
-        subdomains |= set(search_domain.subdomains)
-    if args.output:
-        with open(args.output, 'wb') as f:
-            f.write('\n'.join(tuple(subdomains)).encode('ascii'))
+        engine.run_once()
+        for m in engine.matchs:
+            parse = urlparse(m['url'])
+            if (parse.netloc.endswith(args.domain) and
+                    parse.netloc not in subdomains):
+                subdomains.add(parse.netloc)
+                logger.warn('%s' % (parse.netloc))
 
 
 if __name__ == '__main__':
