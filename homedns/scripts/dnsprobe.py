@@ -45,7 +45,7 @@ def main():
         help='search engine',
     )
     search_group.add_argument('--user-agent', help='http user agent')
-    search_group.add_argument('--page-num', type=int, default=10, help='searching pages')
+    search_group.add_argument('--record-num', type=int, default=100, help='searching record number')
     search_group.add_argument('--proxy', help='proxy server, socks5://127.0.0.1:1080')
 
     parser.add_argument('domain', help='search domain')
@@ -122,8 +122,8 @@ def main():
     if args.engine:
         logger.warn('#' * 80)
         engine = getEngine(args.engine, agent=args.user_agent, proxy=args.proxy)
-        engine.addSearch(site=args.domain, inurl='-www')
-        engine.addSearch(page_max=args.page_num)
+        engine.addSearch(text=[args.domain, '-inurl:www'])
+        engine.addSearch(record_max=args.record_num)
         logger.warn('# Search subdomains of %s from %s' % (args.domain, args.engine))
         engine.run_once()
         for m in engine.matchs:
