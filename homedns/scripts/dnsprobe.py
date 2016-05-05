@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    epilog = "%(prog)s --engine baidu --use-ns zonetransfer.me"
+    epilog = "%(prog)s --engine baidu zonetransfer.me"
     parser = argparse.ArgumentParser(epilog=epilog)
     parser.add_argument('--version', action='version',
                         version='%%(prog)s %s' % version)
