@@ -45,7 +45,7 @@ def main():
         help='search engine',
     )
     search_group.add_argument('--user-agent', help='http user agent')
-    search_group.add_argument('--record-num', type=int, default=100, help='searching record number')
+    search_group.add_argument('--record-max', type=int, default=100, help='searching max record number')
     search_group.add_argument('--proxy', help='proxy server, socks5://127.0.0.1:1080')
 
     parser.add_argument('domain', help='search domain')
@@ -123,7 +123,7 @@ def main():
         logger.warn('#' * 80)
         engine = getEngine(args.engine, agent=args.user_agent, proxy=args.proxy)
         engine.addSearch(text=['site:%s' % args.domain, '-inurl:www'])
-        engine.addSearch(record_max=args.record_num)
+        engine.addSearch(record_max=args.record_max)
         logger.warn('# Search subdomains of %s from %s' % (args.domain, args.engine))
         engine.run_once()
         for m in engine.matchs:
@@ -132,6 +132,14 @@ def main():
                     parse.netloc not in subdomains):
                 subdomains.add(parse.netloc)
                 logger.warn('%s' % (parse.netloc))
+    if args.output:
+        output_file = args.output
+    else:
+        output_file = args.domain + '.txt'
+    with open(output_file, 'w') as f:
+        for d in subdomains:
+            f.write('%s\n' % d)
+    logger.warn('# Output all results to %s' % output_file)
 
 
 if __name__ == '__main__':
