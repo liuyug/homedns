@@ -122,7 +122,7 @@ def main():
     if args.engine:
         logger.warn('#' * 80)
         engine = getEngine(args.engine, agent=args.user_agent, proxy=args.proxy)
-        engine.addSearch(text=[args.domain, '-inurl:www'])
+        engine.addSearch(text=['site:%s' % args.domain, '-inurl:www'])
         engine.addSearch(record_max=args.record_num)
         logger.warn('# Search subdomains of %s from %s' % (args.domain, args.engine))
         engine.run_once()
