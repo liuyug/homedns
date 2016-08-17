@@ -103,7 +103,7 @@ def lookup_local(handler, request):
             rr_data = domain.search(qn2, qt)
             for r in rr_data:
                 answer = RR(
-                    rname=qn,
+                    rname=r['name'],
                     rtype=getattr(QTYPE, r['type']),
                     rclass=1, ttl=60 * 5,
                     rdata=r['rdata'],

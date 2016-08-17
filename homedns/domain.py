@@ -149,6 +149,7 @@ class Domain(object):
                 if qn == name:
                     for rdata in rrs:
                         r.append({
+                            'name': name,
                             'type': 'PTR',
                             'rdata': rdata,
                         })
@@ -159,6 +160,7 @@ class Domain(object):
                     self.get_subdomain('dynamic')
                 )
                 r.append({
+                    'name': name,
                     'type': 'PTR',
                     'rdata': rdata,
                 })
@@ -169,6 +171,7 @@ class Domain(object):
                         rqt = rdata.__class__.__name__
                         if rqt in ['SRV']:
                             r.append({
+                                'name': name,
                                 'type': rqt,
                                 'rdata': rdata,
                             })
@@ -178,6 +181,7 @@ class Domain(object):
                             r += self.search(rdata.target, 'A')
                         elif rqt in ['CNAME']:
                             r.append({
+                                'name': name,
                                 'type': rqt,
                                 'rdata': rdata,
                             })
@@ -187,6 +191,7 @@ class Domain(object):
                             r += self.search(rdata.label, qt)
                         elif qt in ['*', rqt]:
                             r.append({
+                                'name': name,
                                 'type': rqt,
                                 'rdata': rdata,
                             })
@@ -272,6 +277,7 @@ class HostDomain(Domain):
                     rqt = rdata.__class__.__name__
                     if qt in ['*', rqt]:
                         r.append({
+                            'name': name,
                             'type': rqt,
                             'rdata': rdata,
                         })
