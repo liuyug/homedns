@@ -3,6 +3,7 @@
 cls
 
 rmdir build /s /q 2>nul
+rmdir dist /s /q 2>nul
 
 if x%1 == x (
     echo %0 [build_ext, hdns, dnsprobe, dnsresolver]

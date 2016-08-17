@@ -167,7 +167,7 @@ class Domain(object):
                 if name == qn:
                     for rdata in rrs:
                         rqt = rdata.__class__.__name__
-                        if qt in ['*', rqt]:
+                        if rqt in ['SRV']:
                             r.append({
                                 'type': rqt,
                                 'rdata': rdata,
@@ -175,6 +175,7 @@ class Domain(object):
                             logger.debug('Find: %s => %s(%s)' % (
                                 name, rqt, rdata
                             ))
+                            r += self.search(rdata.target, 'A')
                         elif rqt in ['CNAME']:
                             r.append({
                                 'type': rqt,
@@ -184,6 +185,14 @@ class Domain(object):
                                 name, rqt, rdata
                             ))
                             r += self.search(rdata.label, qt)
+                        elif qt in ['*', rqt]:
+                            r.append({
+                                'type': rqt,
+                                'rdata': rdata,
+                            })
+                            logger.debug('Find: %s => %s(%s)' % (
+                                name, rqt, rdata
+                            ))
         return r
 
     def isNeedUpdate(self, refresh):

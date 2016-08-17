@@ -1,7 +1,11 @@
 import sys
 
 if sys.platform == 'win32':
-    from .win32.interface import Interface
+    try:
+        from .win32.interface import Interface
+    except:
+        print('Don\'t find WIN32 interface. Use default...')
+        from .interface import InterfaceBase as Interface
 else:
     from .interface import InterfaceBase as Interface
 
