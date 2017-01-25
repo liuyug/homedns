@@ -100,6 +100,8 @@ class Domain(object):
     def get_subdomain(self, subname):
         if subname == '@':
             dn = self.name
+        elif subname.startswith('@'):
+            dn = subname + '.'
         else:
             dn = subname + '.' + self.name
         if dn not in self.records:
@@ -243,7 +245,9 @@ class HostDomain(Domain):
                     continue
                 ip, name = line.split()[:2]
                 dn = self.get_subdomain(name)
-                if ':' in ip:
+                if ip.startswith('@'):
+                    self.records[dn] += [dnslib.CNAME(ip)]
+                elif ':' in ip:
                     self.records[dn] += [dnslib.AAAA(ip)]
                 else:
                     self.records[dn] += [dnslib.A(ip)]
@@ -269,19 +273,16 @@ class HostDomain(Domain):
         qt: query domain type, default 'A' and 'AAAA'
         """
         r = []
-        if qt not in ['A', 'AAAA']:
-            return r
         for name, rrs in self.records.items():
             if name == qn:
                 for rdata in rrs:
                     rqt = rdata.__class__.__name__
-                    if qt in ['*', rqt]:
-                        r.append({
-                            'name': name,
-                            'type': rqt,
-                            'rdata': rdata,
-                        })
-                        logger.debug('Find: %s => %s(%s)' % (
-                            name, rqt, rdata
-                        ))
+                    r.append({
+                        'name': name,
+                        'type': rqt,
+                        'rdata': rdata,
+                    })
+                    logger.debug('Find: %s => %s(%s)' % (
+                        name, rqt, rdata
+                    ))
         return r

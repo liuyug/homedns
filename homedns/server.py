@@ -100,8 +100,8 @@ def lookup_local(request, reply):
                 logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
                 find = True
                 for r in rr_data:
-                    if r['rdata'].startswith('@'):
-                        alias_request = DNSRecord.question(r['rdata'][1:])
+                    if r['type'] == 'CNAME' and str(r['rdata']).startswith('@'):
+                        alias_request = DNSRecord.question(str(r['rdata'])[1:-1])
                         alias_reply = DNSRecord(
                             DNSHeader(id=alias_request.header.id, qr=1, aa=1, ra=1),
                             q=alias_request.q
