@@ -100,14 +100,25 @@ def lookup_local(request, reply):
                 logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
                 find = True
                 for r in rr_data:
-                    find = True
-                    answer = RR(
-                        rname=r['name'],
-                        rtype=getattr(QTYPE, r['type']),
-                        rclass=1, ttl=60 * 5,
-                        rdata=r['rdata'],
-                    )
-                    reply.add_answer(answer)
+                    if r['rdata'].startswith('@'):
+                        alias_request = DNSRecord.question(r['rdata'][1:])
+                        alias_reply = DNSRecord(
+                            DNSHeader(id=alias_request.header.id, qr=1, aa=1, ra=1),
+                            q=alias_request.q
+                        )
+                        find = lookup_upstream(alias_request, alias_reply)
+                        if find:
+                            for r in alias_reply.rr:
+                                reply.add_answer(r)
+                    else:
+                        find = True
+                        answer = RR(
+                            rname=r['name'],
+                            rtype=getattr(QTYPE, r['type']),
+                            rclass=1, ttl=60 * 5,
+                            rdata=r['rdata'],
+                        )
+                        reply.add_answer(answer)
                 break
 
     # log
@@ -175,7 +186,7 @@ def sendto_upstream(data, dest, port=53,
     return response
 
 
-def lookup_upstream(request, reply, server, proxy):
+def lookup_upstream_by_server(request, reply, server, proxy):
     """
     use TCP mode when proxy enable
     """
@@ -235,6 +246,36 @@ def lookup_upstream(request, reply, server, proxy):
     return find
 
 
+def lookup_upstream(request, reply):
+    qn = request.q.qname
+    qt = QTYPE[request.q.qtype]
+    proxy = globalvars.config['smartdns']['proxy']
+    qn2 = str(qn).rstrip('.')
+    find = True
+
+    for name, param in globalvars.rules.items():
+        if param['rule'].isBlock(qn2):
+            logger.warn('\tRequest "%s(%s)" is in "%s" list.' % (qn, qt, name))
+            best_dns = None
+            servers = []
+            for group in param['upstreams']:
+                servers.extend(globalvars.upstreams[group])
+            for server in servers:
+                if best_dns is None:
+                    best_dns = server
+                elif best_dns['priority'] < server['priority']:
+                    best_dns = server
+            find = lookup_upstream_by_server(request, reply, best_dns, proxy)
+            if find:
+                best_dns['priority'] += (5 if best_dns['priority'] < 100 else 0)
+                logger.debug('\n' + str(reply))
+            else:
+                best_dns['priority'] += (-10 if best_dns['priority'] > 0 else -1)
+            # only use first matching rule
+            break
+    return find
+
+
 def dns_response(handler, data):
     try:
         request = DNSRecord.parse(data)
@@ -242,8 +283,6 @@ def dns_response(handler, data):
         logger.error('Parse request error: %s %s %s' % (
             err, len(data), binascii.b2a_hex(data)))
         return
-    qn = request.q.qname
-    qt = QTYPE[request.q.qtype]
     logger.debug('\n' + str(request))
 
     reply = DNSRecord(
@@ -255,28 +294,7 @@ def dns_response(handler, data):
     if 'local' in globalvars.config['server']['search']:
         find = lookup_local(request, reply)
     if not find and 'upstream' in globalvars.config['server']['search']:
-        proxy = globalvars.config['smartdns']['proxy']
-        qn2 = str(qn).rstrip('.')
-        for name, param in globalvars.rules.items():
-            if param['rule'].isBlock(qn2):
-                logger.warn('\tRequest "%s(%s)" is in "%s" list.' % (qn, qt, name))
-                best_dns = None
-                servers = []
-                for group in param['upstreams']:
-                    servers.extend(globalvars.upstreams[group])
-                for server in servers:
-                    if best_dns is None:
-                        best_dns = server
-                    elif best_dns['priority'] < server['priority']:
-                        best_dns = server
-                find = lookup_upstream(request, reply, best_dns, proxy)
-                if find:
-                    best_dns['priority'] += (5 if best_dns['priority'] < 100 else 0)
-                    logger.debug('\n' + str(reply))
-                else:
-                    best_dns['priority'] += (-10 if best_dns['priority'] > 0 else -1)
-                # only use first matching rule
-                break
+        find = lookup_upstream(request, reply)
 
     if not find:
         logger.info('\tReturn: \n\t\tN/A')
