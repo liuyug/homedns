@@ -9,7 +9,7 @@ def ini_read(config_file):
         return [x.strip() for x in l]
 
     cfg = ConfigParser()
-    cfg.read(config_file)
+    cfg.read(config_file, encoding='utf8')
     log = {}
     log['file'] = cfg.get('log', 'file')
     log['level'] = cfg.getint('log', 'level')

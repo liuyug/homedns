@@ -79,16 +79,12 @@ class UDPRequestHandler(BaseRequestHandler):
         return self.request[1].sendto(data, self.client_address)
 
 
-def lookup_local(handler, request):
+def lookup_local(request, reply):
     qn2 = qn = request.q.qname
     qt = QTYPE[request.q.qtype]
 
-    reply = DNSRecord(
-        DNSHeader(id=request.header.id, qr=1, aa=1, ra=1),
-        q=request.q
-    )
+    find = False
 
-    is_local = False
     for value in globalvars.local_domains.values():
         domain = value['domain']
         if globalvars.config['smartdns']['hack_srv'] and qt == 'SRV' and \
@@ -99,32 +95,32 @@ def lookup_local(handler, request):
                 logger.warn('\tChange SRV request to %s from %s' % (qn2, qn))
 
         if domain.inDomain(qn2):
-            is_local = True
             rr_data = domain.search(qn2, qt)
-            for r in rr_data:
-                answer = RR(
-                    rname=r['name'],
-                    rtype=getattr(QTYPE, r['type']),
-                    rclass=1, ttl=60 * 5,
-                    rdata=r['rdata'],
-                )
-                reply.add_answer(answer)
-            if reply.rr:
+            if rr_data:
+                logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
+                find = True
+                for r in rr_data:
+                    find = True
+                    answer = RR(
+                        rname=r['name'],
+                        rtype=getattr(QTYPE, r['type']),
+                        rclass=1, ttl=60 * 5,
+                        rdata=r['rdata'],
+                    )
+                    reply.add_answer(answer)
                 break
 
-    if is_local:
-        if reply.rr:
-            lines = []
-            for r in reply.rr:
-                rqn = str(r.rdata)
-                rqt = QTYPE[r.rtype]
-                lines.append('\t\t%s(%s)' % (rqn, rqt))
-            logger.info('\tReturn from LOCAL:\n%s' % '\n'.join(lines))
-            logger.debug('\n' + str(reply))
-        else:
-            logger.info('\tReturn from LOCAL: \n\t\tN/A')
-        handler.send_data(reply.pack())
-    return is_local
+    # log
+    if find:
+        lines = []
+        for r in reply.rr:
+            rqn = str(r.rdata)
+            rqt = QTYPE[r.rtype]
+            lines.append('\t\t%s(%s)' % (rqn, rqt))
+        logger.info('\tReturn from LOCAL:\n%s' % '\n'.join(lines))
+        logger.debug('\n' + str(reply))
+
+    return find
 
 
 def sendto_upstream(data, dest, port=53,
@@ -179,19 +175,19 @@ def sendto_upstream(data, dest, port=53,
     return response
 
 
-def lookup_upstream(request, server, proxy):
+def lookup_upstream(request, reply, server, proxy):
     """
     use TCP mode when proxy enable
     """
-    reply = None
     try:
         message = '\tForward to server %(ip)s:%(port)s(%(priority)s)' % server
         message += ' with %s mode' % ('TCP' if server['tcp'] else 'UDP')
         if server['proxy'] and proxy:
                 message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
         logger.info(message)
+        find = False
 
-        r_data = sendto_upstream(
+        data = sendto_upstream(
             request.pack(),
             server['ip'],
             server['port'],
@@ -199,34 +195,33 @@ def lookup_upstream(request, server, proxy):
             timeout=server['timeout'],
             proxy=proxy if server['proxy'] else None,
         )
-        reply = DNSRecord.parse(r_data)
-        if reply.rr:
+        try:
+            upstream_reply = DNSRecord.parse(data)
+        except Exception as err:
+            logger.error('Parse request error: %s %s %s' % (
+                err, len(data), binascii.b2a_hex(data)))
+            return find
+        if upstream_reply.rr:
             logger.info('\tReturn from %(ip)s:%(port)s:' % server)
-            bogus_rr = []
-            for r in reply.rr:
+            for r in upstream_reply.rr:
                 rqn = r.rname
                 rqt = QTYPE[r.rtype]
                 if rqt in ['A', 'AAAA'] and str(r.rdata) in globalvars.bogus_nxdomain:
-                    bogus_rr.append(r)
                     logger.warn('\t*** Bogus Answer: %s(%s) ***' % (r.rdata, rqt))
+                    hack_ip = globalvars.config['smartdns']['bogus_nxdomain']['hack_ip']
+                    if hack_ip:
+                        hack_rqt = 'AAAA' if ':' in hack_ip else 'A'
+                        hack_r = RR(
+                            rname=rqn,
+                            rtype=getattr(QTYPE, hack_rqt),
+                            rclass=1, ttl=60 * 5,
+                            rdata=getattr(dnslib, hack_rqt)(hack_ip),
+                        )
+                        reply.rr.append(hack_r)
                 else:
+                    find = True
+                    reply.add_answer(r)
                     logger.info('\t\t%s(%s)' % (r.rdata, rqt))
-            if bogus_rr:
-                for r in bogus_rr:
-                    reply.rr.remove(r)
-                hack_ip = globalvars.config['smartdns']['bogus_nxdomain']['hack_ip']
-                if hack_ip:
-                    rqt = 'AAAA' if ':' in hack_ip else 'A'
-                    hack_r = RR(
-                        rname=rqn,
-                        rtype=getattr(QTYPE, rqt),
-                        rclass=1, ttl=60 * 5,
-                        rdata=getattr(dnslib, rqt)(hack_ip),
-                    )
-                    reply.rr.append(hack_r)
-                reply.set_header_qa()
-        else:
-            logger.info('\tReturn from %(ip)s:%(port)s: \n\t\tN/A' % server)
     except socket.error as err:
         frm = '%(ip)s:%(port)s(%(priority)s)' % server
         if server['proxy']:
@@ -237,25 +232,29 @@ def lookup_upstream(request, server, proxy):
             traceback.print_exc()
         frm = '%(ip)s:%(port)s(%(priority)s)' % server
         logger.error('\tError when lookup from %s: %s' % (frm, err))
-    return reply
+    return find
 
 
 def dns_response(handler, data):
     try:
         request = DNSRecord.parse(data)
     except Exception as err:
-        logger.error('Parse request error: %s' % err)
+        logger.error('Parse request error: %s %s %s' % (
+            err, len(data), binascii.b2a_hex(data)))
         return
     qn = request.q.qname
     qt = QTYPE[request.q.qtype]
     logger.debug('\n' + str(request))
 
-    local = False
+    reply = DNSRecord(
+        DNSHeader(id=request.header.id, qr=1, aa=1, ra=1),
+        q=request.q
+    )
+
+    find = False
     if 'local' in globalvars.config['server']['search']:
-        local = lookup_local(handler, request)
-    if local:
-        logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
-    elif 'upstream' in globalvars.config['server']['search']:
+        find = lookup_local(request, reply)
+    if not find and 'upstream' in globalvars.config['server']['search']:
         proxy = globalvars.config['smartdns']['proxy']
         qn2 = str(qn).rstrip('.')
         for name, param in globalvars.rules.items():
@@ -270,15 +269,19 @@ def dns_response(handler, data):
                         best_dns = server
                     elif best_dns['priority'] < server['priority']:
                         best_dns = server
-                reply = lookup_upstream(request, best_dns, proxy)
-                if reply:
+                find = lookup_upstream(request, reply, best_dns, proxy)
+                if find:
                     best_dns['priority'] += (5 if best_dns['priority'] < 100 else 0)
                     logger.debug('\n' + str(reply))
-                    handler.send_data(reply.pack())
                 else:
                     best_dns['priority'] += (-10 if best_dns['priority'] > 0 else -1)
                 # only use first matching rule
                 break
+
+    if not find:
+        logger.info('\tReturn: \n\t\tN/A')
+    handler.send_data(reply.pack())
+
     # update
     for value in globalvars.rules.values():
         rule = value['rule']
