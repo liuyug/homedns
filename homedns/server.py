@@ -84,6 +84,7 @@ def lookup_local(request, reply):
     qt = QTYPE[request.q.qtype]
 
     find = False
+    indomain = False
 
     for value in globalvars.local_domains.values():
         domain = value['domain']
@@ -95,13 +96,22 @@ def lookup_local(request, reply):
                 logger.warn('\tChange SRV request to %s from %s' % (qn2, qn))
 
         if domain.inDomain(qn2):
+            indomain = True
+            logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
             rr_data = domain.search(qn2, qt)
             if rr_data:
-                logger.warn('\tRequest "%s(%s)" is in "local" list.' % (qn, qt))
-                find = True
                 for r in rr_data:
-                    if r['type'] == 'CNAME' and str(r['rdata']).startswith('@'):
-                        alias_request = DNSRecord.question(str(r['rdata'])[1:-1])
+                    answer = RR(
+                        rname=r['name'],
+                        rtype=getattr(QTYPE, r['type']),
+                        rclass=1, ttl=60 * 5,
+                        rdata=r['rdata'],
+                    )
+                    reply.add_answer(answer)
+
+                    if r['type'] == 'CNAME' and not domain.inDomain(r['rdata'].get_label()):
+                        logger.warn('\tOutside alias "%s"' % r['rdata'])
+                        alias_request = DNSRecord.question(str(r['rdata']))
                         alias_reply = DNSRecord(
                             DNSHeader(id=alias_request.header.id, qr=1, aa=1, ra=1),
                             q=alias_request.q
@@ -110,15 +120,7 @@ def lookup_local(request, reply):
                         if find:
                             for r in alias_reply.rr:
                                 reply.add_answer(r)
-                    else:
-                        find = True
-                        answer = RR(
-                            rname=r['name'],
-                            rtype=getattr(QTYPE, r['type']),
-                            rclass=1, ttl=60 * 5,
-                            rdata=r['rdata'],
-                        )
-                        reply.add_answer(answer)
+                find = True
                 break
 
     # log
@@ -131,7 +133,7 @@ def lookup_local(request, reply):
         logger.info('\tReturn from LOCAL:\n%s' % '\n'.join(lines))
         logger.debug('\n' + str(reply))
 
-    return find
+    return (indomain, find)
 
 
 def sendto_upstream(data, dest, port=53,
@@ -292,8 +294,8 @@ def dns_response(handler, data):
 
     find = False
     if 'local' in globalvars.config['server']['search']:
-        find = lookup_local(request, reply)
-    if not find and 'upstream' in globalvars.config['server']['search']:
+        indomain, find = lookup_local(request, reply)
+    if not indomain and 'upstream' in globalvars.config['server']['search']:
         find = lookup_upstream(request, reply)
 
     if not find:

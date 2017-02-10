@@ -101,7 +101,7 @@ class Domain(object):
         if subname == '@':
             dn = self.name
         elif subname.startswith('@'):
-            dn = subname + '.'
+            dn = subname[1:] + '.'
         else:
             dn = subname + '.' + self.name
         if dn not in self.records:
@@ -246,7 +246,7 @@ class HostDomain(Domain):
                 ip, name = line.split()[:2]
                 dn = self.get_subdomain(name)
                 if ip.startswith('@'):
-                    self.records[dn] += [dnslib.CNAME(ip)]
+                    self.records[dn] += [dnslib.CNAME(ip[1:])]
                 elif ':' in ip:
                     self.records[dn] += [dnslib.AAAA(ip)]
                 else:

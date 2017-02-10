@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.32'
+version = '0.1.33'
 
 
 class defaults():
