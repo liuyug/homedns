@@ -52,7 +52,7 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
 class TCPRequestHandler(BaseRequestHandler):
 
     def get_data(self):
-        data = self.request.recv(8192).strip()
+        data = self.request.recv(8192)
         sz = int(binascii.b2a_hex(data[:2]), 16)
         if sz < len(data) - 2:
             raise Exception("Wrong size of TCP packet")
@@ -70,7 +70,7 @@ class TCPRequestHandler(BaseRequestHandler):
 class UDPRequestHandler(BaseRequestHandler):
 
     def get_data(self):
-        data = self.request[0].strip()
+        data = self.request[0]
         logger.debug('%s %s' % (len(data), binascii.b2a_hex(data)))
         return data
 
