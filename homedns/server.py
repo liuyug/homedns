@@ -129,7 +129,7 @@ def lookup_local(request, reply):
             for r in reply.rr:
                 logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
         else:
-            logger.warn('\tReturn: \n\t\tN/A')
+            logger.warn('\t\tN/A')
 
     return indomain
 
@@ -237,7 +237,7 @@ def lookup_upstream_by_server(request, reply, server, proxy):
             for r in reply.rr:
                 logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
         else:
-            logger.warn('\n\t\tN/A')
+            logger.warn('\t\tN/A')
     except socket.error as err:
         frm = '%(ip)s:%(port)s(%(priority)s)' % server
         if server['proxy']:
