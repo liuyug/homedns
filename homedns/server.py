@@ -33,7 +33,7 @@ class BaseRequestHandler(socketserver.BaseRequestHandler):
         now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')
         client_ip = self.client_address[0]
         client_port = self.client_address[1]
-        logger.warn("%s request %s (%s %s):" % (
+        logger.warn("\n%s request %s (%s %s):" % (
             self.__class__.__name__[:3],
             now,
             client_ip, client_port,
@@ -83,7 +83,6 @@ def lookup_local(request, reply):
     qn2 = qn = request.q.qname
     qt = QTYPE[request.q.qtype]
 
-    find = False
     indomain = False
 
     for value in globalvars.local_domains.values():
@@ -116,24 +115,23 @@ def lookup_local(request, reply):
                             DNSHeader(id=alias_request.header.id, qr=1, aa=1, ra=1),
                             q=alias_request.q
                         )
-                        find = lookup_upstream(alias_request, alias_reply)
-                        if find:
-                            for r in alias_reply.rr:
-                                reply.add_answer(r)
-                find = True
+                        lookup_upstream(alias_request, alias_reply)
+                        for r in alias_reply.rr:
+                            reply.add_answer(r)
                 break
 
     # log
-    if find:
-        lines = []
-        for r in reply.rr:
-            rqn = str(r.rdata)
-            rqt = QTYPE[r.rtype]
-            lines.append('\t\t%s(%s)' % (rqn, rqt))
-        logger.info('\tReturn from LOCAL:\n%s' % '\n'.join(lines))
-        logger.debug('\n' + str(reply))
+    if indomain:
+        logger.warn('\tReturn from LOCAL:')
+        if globalvars.dig:
+            logger.warn(str(reply))
+        elif reply.rr:
+            for r in reply.rr:
+                logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
+        else:
+            logger.warn('\tReturn: \n\t\tN/A')
 
-    return (indomain, find)
+    return indomain
 
 
 def sendto_upstream(data, dest, port=53,
@@ -198,7 +196,6 @@ def lookup_upstream_by_server(request, reply, server, proxy):
         if server['proxy'] and proxy:
                 message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
         logger.info(message)
-        find = False
 
         data = sendto_upstream(
             request.pack(),
@@ -213,9 +210,8 @@ def lookup_upstream_by_server(request, reply, server, proxy):
         except Exception as err:
             logger.error('Parse request error: %s %s %s' % (
                 err, len(data), binascii.b2a_hex(data)))
-            return find
+            return
         if upstream_reply.rr:
-            logger.info('\tReturn from %(ip)s:%(port)s:' % server)
             for r in upstream_reply.rr:
                 rqn = r.rname
                 rqt = QTYPE[r.rtype]
@@ -232,9 +228,16 @@ def lookup_upstream_by_server(request, reply, server, proxy):
                         )
                         reply.rr.append(hack_r)
                 else:
-                    find = True
                     reply.add_answer(r)
-                    logger.info('\t\t%s(%s)' % (r.rdata, rqt))
+
+        logger.warn('\tReturn from %(ip)s:%(port)s:' % server)
+        if globalvars.dig:
+            logger.warn(str(reply))
+        elif reply.rr:
+            for r in reply.rr:
+                logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
+        else:
+            logger.warn('\n\t\tN/A')
     except socket.error as err:
         frm = '%(ip)s:%(port)s(%(priority)s)' % server
         if server['proxy']:
@@ -245,7 +248,7 @@ def lookup_upstream_by_server(request, reply, server, proxy):
             traceback.print_exc()
         frm = '%(ip)s:%(port)s(%(priority)s)' % server
         logger.error('\tError when lookup from %s: %s' % (frm, err))
-    return find
+    return
 
 
 def lookup_upstream(request, reply):
@@ -253,7 +256,6 @@ def lookup_upstream(request, reply):
     qt = QTYPE[request.q.qtype]
     proxy = globalvars.config['smartdns']['proxy']
     qn2 = str(qn).rstrip('.')
-    find = True
 
     for name, param in globalvars.rules.items():
         if param['rule'].isBlock(qn2):
@@ -267,15 +269,16 @@ def lookup_upstream(request, reply):
                     best_dns = server
                 elif best_dns['priority'] < server['priority']:
                     best_dns = server
-            find = lookup_upstream_by_server(request, reply, best_dns, proxy)
-            if find:
+            lookup_upstream_by_server(request, reply, best_dns, proxy)
+
+            if reply.rr:
                 best_dns['priority'] += (5 if best_dns['priority'] < 100 else 0)
-                logger.debug('\n' + str(reply))
             else:
                 best_dns['priority'] += (-10 if best_dns['priority'] > 0 else -1)
+
             # only use first matching rule
             break
-    return find
+    return
 
 
 def dns_response(handler, data):
@@ -285,21 +288,17 @@ def dns_response(handler, data):
         logger.error('Parse request error: %s %s %s' % (
             err, len(data), binascii.b2a_hex(data)))
         return
-    logger.debug('\n' + str(request))
 
     reply = DNSRecord(
         DNSHeader(id=request.header.id, qr=1, aa=1, ra=1),
         q=request.q
     )
 
-    find = False
     if 'local' in globalvars.config['server']['search']:
-        indomain, find = lookup_local(request, reply)
+        indomain = lookup_local(request, reply)
     if not indomain and 'upstream' in globalvars.config['server']['search']:
-        find = lookup_upstream(request, reply)
+        lookup_upstream(request, reply)
 
-    if not find:
-        logger.info('\tReturn: \n\t\tN/A')
     handler.send_data(reply.pack())
 
     # update

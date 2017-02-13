@@ -161,3 +161,4 @@ def init():
     global bogus_nxdomain
     global config_dir
     global log_dir
+    global dig

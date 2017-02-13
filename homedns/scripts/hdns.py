@@ -24,6 +24,7 @@ from ..dhcp import getdns
 def init_config(args):
     globalvars.init()
 
+    globalvars.dig = args.dig
     globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
     globalvars.log_dir = globalvars.config_dir
 
@@ -275,6 +276,12 @@ def run():
         help='read config from file',
         default='homedns.ini',
     )
+
+    parser.add_argument(
+        '--dig',
+        action='store_true',
+        help='dig format output',
+    )
     args = parser.parse_args()
 
     init_config(args)
@@ -315,6 +322,7 @@ def run():
     finally:
         for s in servers:
             s.shutdown()
+
 
 if __name__ == '__main__':
     run()
