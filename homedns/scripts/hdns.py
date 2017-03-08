@@ -30,8 +30,6 @@ def init_config(args):
 
     config_file = os.path.join(globalvars.config_dir, os.path.basename(args.config))
     fsplit = os.path.splitext(config_file)
-    ini_file = fsplit[0] + '.ini'
-    json_file = fsplit[0] + '.json'
     ext = fsplit[1].lower()
     if os.path.exists(config_file):
         if ext == '.ini':
@@ -47,10 +45,6 @@ def init_config(args):
             'smartdns': globalvars.defaults.smartdns,
             'domains': globalvars.defaults.domains,
         }
-    if not os.path.exists(ini_file):
-        ini_write(globalvars.config, ini_file)
-    if not os.path.exists(json_file):
-        json.dump(globalvars.config, open(json_file, 'w'), indent=4)
 
     if args.verbose >= 0:
         log_level = logging.WARNING - (args.verbose * 10)
