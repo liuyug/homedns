@@ -230,7 +230,7 @@ def lookup_upstream_by_server(request, reply, server, proxy):
                 else:
                     reply.add_answer(r)
 
-        logger.warn('\tReturn from %(ip)s:%(port)s:' % server)
+        logger.warn('\tReturn from %(ip)s:%(port)s(%(priority)s):' % server)
         if globalvars.dig:
             logger.warn(str(reply))
         elif reply.rr:

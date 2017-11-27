@@ -2,6 +2,8 @@
 
 cls
 
+set PATH=%PATH%;C:\Python35-32\swigwin-3.0.12
+
 rmdir build /s /q 2>nul
 rmdir dist /s /q 2>nul
 
