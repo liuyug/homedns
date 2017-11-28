@@ -24,4 +24,5 @@ if x%1 == xdnsresolver (
     pyinstaller --icon App-browser.ico --clean --noupx --noconfirm --console --paths homedns --onefile dnsresolver.py
 )
 
+del *.spec /q
 )
