@@ -53,7 +53,7 @@ def getdns(iface=None, retry=1):
     iface_info = interface.interfaces.get(iface)
     if not iface_info:
         return []
-    logger.debug('use interface: %s - %s (%s)' % (
+    logger.warn('\tDHCP interface: %s - %s (%s)' % (
         iface,
         iface_info['ipaddr'][0],
         iface_info['macaddr'],
