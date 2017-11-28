@@ -275,7 +275,7 @@ def lookup_upstream(request, reply):
                         return
                 else:
                     # socket timeout
-                    server['priority'] = max(server['priority'] / 2, 0)
+                    server['priority'] = int(server['priority'] / 2)
 
             # only use first matching rule
             break
