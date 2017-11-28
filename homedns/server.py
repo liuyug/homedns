@@ -210,7 +210,7 @@ def lookup_upstream_by_server(request, reply, server, proxy):
         except Exception as err:
             logger.error('Parse request error: %s %s %s' % (
                 err, len(data), binascii.b2a_hex(data)))
-            return
+            return True
         if upstream_reply.rr:
             for r in upstream_reply.rr:
                 rqn = r.rname
@@ -238,6 +238,7 @@ def lookup_upstream_by_server(request, reply, server, proxy):
                 logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
         else:
             logger.warn('\t\tN/A')
+        return True
     except socket.error as err:
         frm = '%(ip)s:%(port)s(%(priority)s)' % server
         if server['proxy']:
@@ -248,7 +249,7 @@ def lookup_upstream_by_server(request, reply, server, proxy):
             traceback.print_exc()
         frm = '%(ip)s:%(port)s(%(priority)s)' % server
         logger.error('\tError when lookup from %s: %s' % (frm, err))
-    return
+    return False
 
 
 def lookup_upstream(request, reply):
@@ -260,21 +261,21 @@ def lookup_upstream(request, reply):
     for name, param in globalvars.rules.items():
         if param['rule'].isBlock(qn2):
             logger.warn('\tRequest "%s(%s)" is in "%s" list.' % (qn, qt, name))
-            best_dns = None
             servers = []
             for group in param['upstreams']:
                 servers.extend(globalvars.upstreams[group])
+            servers.sort(key=lambda x: x['priority'], reverse=True)
             for server in servers:
-                if best_dns is None:
-                    best_dns = server
-                elif best_dns['priority'] < server['priority']:
-                    best_dns = server
-            lookup_upstream_by_server(request, reply, best_dns, proxy)
-
-            if reply.rr:
-                best_dns['priority'] += (5 if best_dns['priority'] < 100 else 0)
-            else:
-                best_dns['priority'] += (-10 if best_dns['priority'] > 0 else -1)
+                # try query servers by priority
+                ret = lookup_upstream_by_server(request, reply, server, proxy)
+                if ret:
+                    if reply.rr:
+                        # find and return
+                        server['priority'] = min(server['priority'] + 5, 100)
+                        return
+                else:
+                    # socket timeout
+                    server['priority'] = max(server['priority'] / 2, 0)
 
             # only use first matching rule
             break

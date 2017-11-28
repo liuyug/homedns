@@ -17,7 +17,7 @@ from ..server import UDPRequestHandler, TCPRequestHandler
 from ..domain import Domain, HostDomain
 from ..loader import TxtLoader, JsonLoader
 from ..adblock import Adblock
-from ..iniconfig import ini_read, ini_write
+from ..iniconfig import ini_read
 from ..dhcp import getdns
 
 

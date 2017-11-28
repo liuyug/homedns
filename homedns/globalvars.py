@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.33'
+version = '0.1.35'
 
 
 class defaults():
@@ -130,9 +130,10 @@ class defaults():
         },
         # dns CNAME record. alias domain.
         'CNAME': {
-            'www': ['@'],
+            'www': ['@'],  # internal alias
             'ldap': ['www'],
             'kms': ['www'],
+            'vps': ['@vps.ddns.net'],  # extern alias
         },
         # dns TXT record
         'TXT': {
