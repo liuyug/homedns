@@ -17,7 +17,7 @@ from ..server import UDPRequestHandler, TCPRequestHandler
 from ..domain import Domain, HostDomain
 from ..loader import TxtLoader, JsonLoader
 from ..adblock import Adblock
-from ..iniconfig import ini_read
+from ..iniconfig import ini_read, ini_write
 from ..dhcp import getdns
 
 
@@ -45,6 +45,7 @@ def init_config(args):
             'smartdns': globalvars.defaults.smartdns,
             'domains': globalvars.defaults.domains,
         }
+        ini_write(globalvars.config, config_file)
 
     if args.verbose >= 0:
         log_level = logging.WARNING - (args.verbose * 10)

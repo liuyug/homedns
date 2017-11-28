@@ -51,7 +51,7 @@ def ini_read(config_file):
     for name in names:
         section = 'dns_' + name.strip()
         smartdns['upstreams'][name] = {
-            'ip': cfg.get(section, 'ip').split(','),
+            'ip': strip_item(cfg.get(section, 'ip').split(',')),
             'port': cfg.getint(section, 'port'),
             'timeout': cfg.getint(section, 'timeout'),
             'proxy': cfg.getboolean(section, 'proxy'),
