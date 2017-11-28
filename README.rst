@@ -34,7 +34,7 @@ Pack
 ------
 ::
 
-    pyinstaller --clean --noupx -c -p homedns -F homedns.py
+    pyinstaller --icon App-browser.ico --clean --noupx --noconfirm --console --paths homedns --onefile hdns.py
 
 Sample
 =======
