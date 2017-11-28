@@ -168,5 +168,5 @@ def ini_write(config, config_file):
         line.append('%s = %s' % ('refresh', domain['refresh']))
         line.append('')
 
-    with open(config_file, 'w') as f:
-        f.write('\n'.join(line))
+    with open(config_file, 'wb') as f:
+        f.write(('\n'.join(line)).encode('utf8'))
