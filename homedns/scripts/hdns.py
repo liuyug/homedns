@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
+import sys
 import os.path
 import argparse
 import logging
@@ -25,20 +26,21 @@ def init_config(args):
     globalvars.init()
 
     globalvars.dig = args.dig
-    globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
-    globalvars.log_dir = globalvars.config_dir
+    if sys.platform == 'win32':
+        globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
+    else:
+        globalvars.config_dir = os.path.join(
+            os.path.expanduser('~'), '.config', 'homedns')
+    os.makedirs(globalvars.config_dir, exist_ok=True)
+
+    globalvars.log_dir = os.path.join(globalvars.config_dir, 'log')
+    os.makedirs(globalvars.log_dir, exist_ok=True)
 
     config_file = os.path.join(globalvars.config_dir, os.path.basename(args.config))
-    fsplit = os.path.splitext(config_file)
-    ext = fsplit[1].lower()
     if os.path.exists(config_file):
-        if ext == '.ini':
-            globalvars.config = ini_read(config_file)
-        elif ext == '.json':
-            globalvars.config = json.load(open(config_file))
-        else:
-            raise TypeError('Unknown config file: %s' % config_file)
-    else:
+        globalvars.config = ini_read(config_file)
+    elif os.path.basename(config_file) == 'homedns.ini':
+        print('Could not find config "%s", use default...' % config_file)
         globalvars.config = {
             'log': globalvars.defaults.log,
             'server': globalvars.defaults.server,
@@ -46,6 +48,8 @@ def init_config(args):
             'domains': globalvars.defaults.domains,
         }
         ini_write(globalvars.config, config_file)
+    else:
+        raise TypeError('Unknown config file: %s' % config_file)
 
     if args.verbose >= 0:
         log_level = logging.WARNING - (args.verbose * 10)

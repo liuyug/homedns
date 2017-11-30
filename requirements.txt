@@ -1,3 +1,4 @@
+six
 dnslib
 netaddr
 pysocks
