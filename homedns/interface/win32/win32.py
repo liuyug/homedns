@@ -27,9 +27,11 @@ class Flags():
     IP_ADAPTER_IPV6_ENABLED = 0x0100  # The adapter is enabled for IPv6.
     IP_ADAPTER_IPV6_MANAGE_ADDRESS_CONFIG = 0x0200
 
+    @classmethod
     def dhcp_enable(cls, flags):
         return bool(flags & cls.IP_ADAPTER_DHCP_ENABLED)
 
+    @classmethod
     def ipv4_enable(cls, flags):
         return bool(flags & cls.IP_ADAPTER_DHCP_ENABLED)
 
@@ -55,13 +57,16 @@ class OperStatus():
     IfOperStatusNotPresent = 6
     IfOperStatusLowerLayerDown = 7
 
-    def up(cls, oper_status):
+    @classmethod
+    def isUp(cls, oper_status):
         return oper_status == cls.IfOperStatusUp
 
-    def down(cls, oper_status):
+    @classmethod
+    def isDown(cls, oper_status):
         return oper_status == cls.IfOperStatusDown
 
-    def desc(cls, oper_status):
+    @classmethod
+    def getDescription(cls, oper_status):
         if oper_status == cls.IfOperStatusUp:
             return 'up'
         elif oper_status == cls.IfOperStatusDown:
@@ -302,9 +307,9 @@ def get_ifaddrs():
         if dhcp:
             dhcp_server.append(str(dhcp))
         d['dhcp_server'] = dhcp_server
-        d['dhcp_enable'] = Flags().dhcp_enable(i.flags)
+        d['dhcp_enable'] = Flags.dhcp_enable(i.flags)
         d['dns_suffix'] = i.dns_suffix
-        d['oper_status'] = OperStatus().desc(i.oper_status)
+        d['oper_status'] = OperStatus.getDescription(i.oper_status)
 
         gateways = []
         gw = i.first_gateway_address
