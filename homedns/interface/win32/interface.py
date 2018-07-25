@@ -22,7 +22,7 @@ class Interface(InterfaceBase):
             iface['gateway'] = ifaddr['gateway']
             iface['dnserver'] = ifaddr['dns_server']
             # ipv4 gateway
-            if (iface['status'] and
+            if (iface['status'] == 'up' and
                     self.includeIPv4(iface['gateway']) and
                     self.includeIPv4(iface['ipaddr']) and
                     ifaddr['ipv4_metric'] < min_metric):
