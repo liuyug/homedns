@@ -7,7 +7,7 @@ if x%1 == x (
     exit /b
 )
 
-(cd ..
+pushd ..
 
 rmdir build /s /q 2>nul
 rmdir dist /s /q 2>nul
@@ -25,4 +25,4 @@ if x%1 == xdnsresolver (
 )
 
 del *.spec /q
-)
+popd
