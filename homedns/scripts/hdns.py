@@ -26,16 +26,11 @@ def init_config(args):
     globalvars.init()
 
     globalvars.dig = args.dig
-    if sys.platform == 'win32':
-        globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
-    else:
-        globalvars.config_dir = os.path.join(
-            os.path.expanduser('~'), '.config', 'homedns')
+    globalvars.config_dir = os.path.abspath(os.path.dirname(args.config))
     os.makedirs(globalvars.config_dir, exist_ok=True)
 
     globalvars.log_dir = os.path.join(globalvars.config_dir, 'log')
     os.makedirs(globalvars.log_dir, exist_ok=True)
-
     config_file = os.path.join(globalvars.config_dir, os.path.basename(args.config))
     if os.path.exists(config_file):
         globalvars.config = ini_read(config_file)
