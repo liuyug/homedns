@@ -92,13 +92,23 @@ class Adblock(object):
             return
 
     def _inList(self, domain_list, host):
+        level = 0
         for domain in domain_list:
-            if domain == '.*' or host[-len(domain):] == domain:
-                return True
-        return False
+            if domain == '.*':
+                # www.example.com == .*
+                level = 1
+            elif host[-len(domain):] == domain:
+                # www.example.com == .example.com
+                #    ^^^^^^^^^^^^
+                level = len(domain)
+            elif '.' + host == domain:
+                # sub.example.com == .sub.example.com
+                # full match
+                level = 100
+        return level
 
     def isBlock(self, host):
-        return not self.isWhite(host) and self.isBlack(host)
+        return self.isBlack(host) > self.isWhite(host)
 
     def isWhite(self, host):
         return self._inList(self.whitelist, host)
