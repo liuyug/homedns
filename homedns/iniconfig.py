@@ -58,6 +58,10 @@ def ini_read(config_file):
             'tcp': cfg.getboolean(section, 'tcp'),
             'priority': cfg.getint(section, 'priority'),
         }
+        if cfg.has_option(section, 'protocol'):
+            smartdns['upstreams'][name]['protocol'] = cfg.get(section, 'protocol')
+        else:
+            smartdns['upstreams'][name]['protocol'] = 'dns'
     domains = []
     for name in strip_item(cfg.get('domains', 'domain').split(',')):
         section = 'domain_' + name
@@ -120,6 +124,8 @@ def ini_write(config, config_file):
         line.append('# 地址和端口, 如果 IP 为 DHCP, 则从 DHCP 服务器获取 DNS 地址')
         line.append('%s = %s' % ('ip', ','.join(value['ip'])))
         line.append('%s = %s' % ('port', value['port']))
+        line.append('# 使用的协议')
+        line.append('%s = %s' % ('protocol', value['protocol']))
         line.append('# 连接超时时间')
         line.append('%s = %s' % ('timeout', value['timeout']))
         line.append('# 是否使用代理, True/False')

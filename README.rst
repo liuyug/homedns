@@ -17,6 +17,7 @@ Feature
 #. Support Adblock RUlE. Filter the request by rule and forward it to upstream DNS server.
 #. Local "hosts" file, resolve domain name by hosts content.
 #. Support non-standard DNS port, default 53
+#. Support DNS-over-HTTPS with google protocol
 
 hosts rules
 ============

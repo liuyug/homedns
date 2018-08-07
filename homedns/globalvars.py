@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-version = '0.1.35'
+version = '0.1.38'
 
 
 class defaults():
@@ -60,6 +60,7 @@ class defaults():
             '114dns': {
                 'ip': ['114.114.114.114', '114.114.115.115'],
                 'port': 53,
+                'protocol': 'dns',
                 'timeout': 2,
                 'proxy': False,
                 'tcp': False,
@@ -68,8 +69,54 @@ class defaults():
             'gdns': {
                 'ip': ['8.8.8.8', '8.8.4.4'],
                 'port': 53,
+                'protocol': 'dns',
                 'timeout': 2,
                 'proxy': True,
+                'tcp': True,
+                'priority': 50,
+            },
+            'cloudflare_dns': {
+                'ip': ['1.1.1.1'],
+                'port': 53,
+                'protocol': 'dns',
+                'timeout': 2,
+                'proxy': True,
+                'tcp': True,
+                'priority': 50,
+            },
+            'quad9_dns': {
+                'ip': ['9.9.9.9', '149.112.112.112'],
+                'port': 53,
+                'protocol': 'dns',
+                'timeout': 2,
+                'proxy': True,
+                'tcp': True,
+                'priority': 50,
+            },
+            'blahdns': {
+                'ip': ['https://doh.de.blahdns.com/dns-query', 'https://doh.blahdns.com/dns-query'],
+                'port': 443,
+                'protocol': 'doh',
+                'timeout': 2,
+                'proxy': False,
+                'tcp': True,
+                'priority': 50,
+            },
+            'cloudflare_doh': {
+                'ip': ['https://cloudflare-dns.com/dns-query'],
+                'port': 443,
+                'protocol': 'doh',
+                'timeout': 2,
+                'proxy': False,
+                'tcp': True,
+                'priority': 50,
+            },
+            'google_doh': {
+                'ip': ['https://dns.google.com/resolve'],
+                'port': 443,
+                'protocol': 'doh',
+                'timeout': 2,
+                'proxy': False,
                 'tcp': True,
                 'priority': 50,
             },
