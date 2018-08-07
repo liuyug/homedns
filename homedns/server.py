@@ -206,7 +206,6 @@ def sendto_doh(url, proxy=None):
         data_io = urlopen(r)
     data = data_io.read()
     data = json.loads(data)
-    # data = data.decode('utf-8')
     return data
 
 
@@ -293,14 +292,15 @@ def lookup_upstream_by_doh(request, reply, server, proxy):
             url,
             proxy=proxy if server['proxy'] else None,
         )
-        for r in data['Answer']:
-            answer = RR(
-                rname=r['name'],
-                rtype=r['type'],
-                rclass=1, ttl=r['TTL'],
-                rdata=getattr(dnslib, QTYPE[r['type']])(r['data']),
-            )
-            reply.add_answer(answer)
+        if data['Status'] == 0:
+            for r in data['Answer']:
+                answer = RR(
+                    rname=r['name'],
+                    rtype=r['type'],
+                    rclass=1, ttl=r['TTL'],
+                    rdata=getattr(dnslib, QTYPE[r['type']])(r['data']),
+                )
+                reply.add_answer(answer)
         logger.warn('\tReturn from %(ip)s:%(port)s(%(priority)s):' % server)
         if globalvars.dig:
             logger.warn(str(reply))
