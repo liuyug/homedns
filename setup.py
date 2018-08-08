@@ -30,7 +30,7 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'homedns = homedns.scripts.hdns:run',
+            'homedns = homedns.hdns:run',
         ],
     },
     install_requires=requirements,

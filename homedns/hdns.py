@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- encoding:utf-8 -*-
 
-import sys
 import os.path
 import argparse
 import logging
@@ -10,16 +9,16 @@ import json
 import threading
 from collections import OrderedDict
 
-from six.moves import socketserver
+import socketserver
 import netaddr
 
-from .. import globalvars
-from ..server import UDPRequestHandler, TCPRequestHandler
-from ..domain import Domain, HostDomain
-from ..loader import TxtLoader, JsonLoader
-from ..adblock import Adblock
-from ..iniconfig import ini_read, ini_write
-from ..dhcp import getdns
+from . import globalvars
+from .server import UDPRequestHandler, TCPRequestHandler
+from .domain import Domain, HostDomain
+from .loader import TxtLoader, JsonLoader
+from .adblock import Adblock
+from .iniconfig import ini_read, ini_write
+from .dhcp import getdns
 
 
 def init_config(args):
