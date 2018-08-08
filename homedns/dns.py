@@ -13,7 +13,7 @@ from . import globalvars
 logger = logging.getLogger(__name__)
 
 
-def lookup_upstream_by_dns(request, reply, server, proxy):
+def lookup_upstream(request, reply, server, proxy):
     """
     use TCP mode when proxy enable
     """
@@ -56,15 +56,15 @@ def lookup_upstream_by_dns(request, reply, server, proxy):
                         reply.rr.append(hack_r)
                 else:
                     reply.add_answer(r)
-
-        logger.warn('\tReturn from %(ip)s:%(port)s(%(priority)s):' % server)
+        message = ['\tReturn from %(ip)s:%(port)s(%(priority)s):' % server]
         if globalvars.dig:
             logger.warn(str(reply))
         elif reply.rr:
             for r in reply.rr:
-                logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
+                message.append('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
         else:
-            logger.warn('\t\tN/A')
+            message.append('\t\tN/A')
+        logger.warn('\n'.join(message))
         return True
     except socket.error as err:
         frm = '%(ip)s:%(port)s(%(priority)s)' % server

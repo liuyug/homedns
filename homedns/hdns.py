@@ -13,7 +13,7 @@ import socketserver
 import netaddr
 
 from . import globalvars
-from .server import UDPRequestHandler, TCPRequestHandler
+from .transport import UDPRequestHandler, TCPRequestHandler
 from .domain import Domain, HostDomain
 from .loader import TxtLoader, JsonLoader
 from .adblock import Adblock
@@ -45,7 +45,9 @@ def init_config(args):
     else:
         raise TypeError('Unknown config file: %s' % config_file)
 
-    if args.verbose >= 0:
+    if args.quiet:
+        log_level = logging.ERROR
+    elif args.verbose:
         log_level = logging.WARNING - (args.verbose * 10)
     else:
         log_level = globalvars.config['log']['level']
@@ -262,8 +264,8 @@ def run():
     parser = argparse.ArgumentParser()
     parser.add_argument('--version', action='version',
                         version='%%(prog)s %s' % globalvars.version)
-    parser.add_argument('-v', '--verbose', help='verbose help',
-                        action='count', default=0)
+    parser.add_argument('-v', '--verbose', help='verbose output', action='count')
+    parser.add_argument('-q', '--quiet', action='store_true', help='no verbose, except Error')
     parser.add_argument(
         '--config',
         help='read config from file',

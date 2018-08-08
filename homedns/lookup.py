@@ -84,9 +84,9 @@ def lookup_upstream(request, reply):
                 # try query servers by priority
                 ret = None
                 if server['protocol'] == 'dns':
-                    ret = dns.lookup_upstream_by_dns(request, reply, server, proxy)
+                    ret = dns.lookup_upstream(request, reply, server, proxy)
                 elif server['protocol'] == 'doh':
-                    ret = doh.lookup_upstream_by_doh(request, reply, server, proxy)
+                    ret = doh.lookup_upstream(request, reply, server, proxy)
                 if ret:
                     if reply.rr:
                         # find and return
