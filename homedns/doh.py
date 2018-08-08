@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 def lookup_upstream_by_doh(request, reply, server, proxy):
+    """
+    json-format: https://developers.cloudflare.com/1.1.1.1/dns-over-https/json-format/
+    """
     try:
         message = '\tForward to server %(ip)s(%(priority)s)' % server
         message += ' with %s protocol' % server['protocol']
