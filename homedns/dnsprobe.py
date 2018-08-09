@@ -3,7 +3,6 @@
 # additional packages:
 #   pysocks
 #   dnslib
-#   six
 #   lxml
 #   BeautifulSoup4
 
@@ -11,13 +10,13 @@ import socket
 import logging
 import argparse
 
-from six.moves.urllib.parse import urlparse
+import urllib.parse
 from dnslib.dns import DNSRecord, DNSQuestion, QTYPE, DNSError
 
 from webspider.searchengine import getEngine
 
-from ..interface import Interface
-from ..server import sendto_upstream
+from .interface import Interface
+import lookup
 
 
 version = '0.1.4'
@@ -68,7 +67,7 @@ def main():
     try:
         qtype = 'SOA'
         q = DNSRecord(q=DNSQuestion(args.domain, getattr(QTYPE, qtype)))
-        a_pkt = sendto_upstream(
+        a_pkt = lookup.sendto_upstream(
             q.pack(), server_ip, server_port,
             timeout=args.timeout
         )
@@ -127,7 +126,7 @@ def main():
         logger.warn('# Search subdomains of %s from %s' % (args.domain, args.engine))
         engine.run_once()
         for m in engine.matchs:
-            parse = urlparse(m['url'])
+            parse = urllib.parse.urlparse(m['url'])
             if (parse.netloc.endswith(args.domain) and
                     parse.netloc not in subdomains):
                 subdomains.add(parse.netloc)

@@ -2,6 +2,6 @@
 # -*- encoding:utf-8 -*-
 
 
-from homedns.scripts.dnsprobe import main
+from homedns.dnsprobe import main
 
 main()
