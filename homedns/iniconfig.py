@@ -124,7 +124,7 @@ def ini_write(config, config_file):
         line.append('# 地址和端口, 如果 IP 为 DHCP, 则从 DHCP 服务器获取 DNS 地址')
         line.append('%s = %s' % ('ip', ','.join(value['ip'])))
         line.append('%s = %s' % ('port', value['port']))
-        line.append('# 使用的协议')
+        line.append('# 使用的协议: dns, doh, doh_wireformat, doh_json')
         line.append('%s = %s' % ('protocol', value['protocol']))
         line.append('# 连接超时时间')
         line.append('%s = %s' % ('timeout', value['timeout']))

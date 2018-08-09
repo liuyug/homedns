@@ -26,12 +26,12 @@ def lookup_upstream(request, reply, server, proxy):
                 message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
         logger.info(message)
 
-        if server['protocol'] == 'doh':
+        if server['protocol'] == 'doh_json':
             qn = request.q.qname
             qt = QTYPE[request.q.qtype]
             qn2 = str(qn).rstrip('.')
             url = '%s?name=%s&type=%s' % (server['ip'], qn2, qt)
-            data = sendto_doh(
+            data = sendto_doh_json(
                 url,
                 proxy=proxy if server['proxy'] else None,
             )
@@ -44,12 +44,12 @@ def lookup_upstream(request, reply, server, proxy):
                         rdata=getattr(dnslib, QTYPE[r['type']])(r['data']),
                     )
                     reply.add_answer(answer)
-        elif server['protocol'] == 'doh_ietf':
+        elif server['protocol'] == 'doh' or server['protocol'] == 'doh_wireformat':
             # GET method: ignore
             # base64 encode DNS message. It will conflict URL encoding character
             # POST method
             # https is tunnel. It do not modifiy DNS message
-            dns_message = sendto_doh_ietf(
+            dns_message = sendto_doh_wireformat(
                 server['ip'], data=request.pack(),
                 proxy=proxy if server['proxy'] else None,
             )
@@ -90,7 +90,7 @@ def lookup_upstream(request, reply, server, proxy):
     return False
 
 
-def sendto_doh(url, proxy=None):
+def sendto_doh_json(url, proxy=None):
     """ dns-query """
     r = urllib.request.Request(url)
     r.add_header('accept', 'application/dns-json')
@@ -109,7 +109,7 @@ def sendto_doh(url, proxy=None):
     return data
 
 
-def sendto_doh_ietf(url, data=None, proxy=None):
+def sendto_doh_wireformat(url, data=None, proxy=None):
     """ dns-message """
     r = urllib.request.Request(url)
     r.add_header('accept', 'application/dns-message')
