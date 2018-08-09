@@ -3,7 +3,7 @@ HOMEDNS
 =========
 This is a tiny DNS server only for family used.
 
-Support python2 and python3.
+Support python3
 
 .. note::
 
@@ -17,7 +17,7 @@ Feature
 #. Support Adblock RUlE. Filter the request by rule and forward it to upstream DNS server.
 #. Local "hosts" file, resolve domain name by hosts content.
 #. Support non-standard DNS port, default 53
-#. Support DNS-over-HTTPS with google protocol
+#. Support DNS-over-HTTPS with protocol google and IETF
 
 hosts rules
 ============

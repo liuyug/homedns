@@ -85,7 +85,7 @@ def lookup_upstream(request, reply):
                 ret = None
                 if server['protocol'] == 'dns':
                     ret = dns.lookup_upstream(request, reply, server, proxy)
-                elif server['protocol'] == 'doh':
+                elif server['protocol'].startswith('doh'):
                     ret = doh.lookup_upstream(request, reply, server, proxy)
                 if ret:
                     if reply.rr:
