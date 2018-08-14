@@ -230,8 +230,11 @@ def init_config(args):
                         loader.url,
                     ))
             logger.warn('Add domain %s - %s' % (domain['name'], loader))
-            d = HostDomain(domain['name'])
-            d.create(loader)
+            try:
+                d = HostDomain(domain['name'])
+                d.create(loader)
+            except Exception as err:
+                logger.error(err)
         elif domain['type'] == 'dns':
             loader = JsonLoader(
                 domain['url'],
@@ -251,8 +254,11 @@ def init_config(args):
                         loader.url,
                     ))
             logger.warn('Add domain %s - %s' % (domain['name'], loader))
-            d = Domain(domain['name'])
-            d.create(loader)
+            try:
+                d = Domain(domain['name'])
+                d.create(loader)
+            except Exception as err:
+                logger.error(err)
         logger.debug('Records:\n\t' + '\n\t'.join(d.output_records()))
         globalvars.local_domains[domain['name']] = {
             'domain': d,
