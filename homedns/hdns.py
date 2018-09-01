@@ -9,11 +9,10 @@ import json
 import threading
 from collections import OrderedDict
 
-import socketserver
 import netaddr
 
 from . import globalvars
-from .transport import UDPRequestHandler, TCPRequestHandler
+from . import transport
 from .domain import Domain, HostDomain
 from .loader import TxtLoader, JsonLoader
 from .adblock import Adblock
@@ -289,20 +288,19 @@ def run():
 
     logger.warn("Starting nameserver...")
 
-    ip = globalvars.config['server']['listen_ip']
-    port = globalvars.config['server']['listen_port']
-
-    logger.warn('Listen on %s:%s' % (ip, port))
+    binds = globalvars.config['server']['binds']
 
     servers = []
-    if 'udp' in globalvars.config['server']['protocols']:
-        servers.append(
-            socketserver.ThreadingUDPServer((ip, port), UDPRequestHandler)
-        )
-    if 'tcp' in globalvars.config['server']['protocols']:
-        servers.append(
-            socketserver.ThreadingTCPServer((ip, port), TCPRequestHandler),
-        )
+    for bind in binds:
+        logger.warn('Listen on %(protocol)s://%(ip)s:%(port)s' % bind)
+        if 'udp' == bind['protocol']:
+            servers.append(
+                transport.ThreadingUDPServer((bind['ip'], bind['port']), transport.UDPRequestHandler)
+            )
+        if 'tcp' == bind['protocol']:
+            servers.append(
+                transport.ThreadingTCPServer((bind['ip'], bind['port']), transport.TCPRequestHandler),
+            )
 
     for s in servers:
         # that thread will start one more thread for each request

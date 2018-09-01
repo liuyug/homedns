@@ -14,9 +14,17 @@ def ini_read(config_file):
     log['file'] = cfg.get('log', 'file')
     log['level'] = cfg.getint('log', 'level')
     server = {}
-    server['protocols'] = strip_item(cfg.get('server', 'protocols').split(','))
-    server['listen_ip'] = cfg.get('server', 'listen_ip')
-    server['listen_port'] = cfg.getint('server', 'listen_port')
+
+    binds = []
+    for item in strip_item(cfg.get('server', 'binds').split(',')):
+        bind = item.split('|')
+        binds.append({
+            'protocol': bind[0],
+            'ip': bind[1],
+            'port': int(bind[2]),
+        })
+    server['binds'] = binds
+
     server['search'] = strip_item(cfg.get('server', 'search').split(','))
     server['allowed_hosts'] = strip_item(cfg.get('server', 'allowed_hosts').split(','))
     smartdns = {}
@@ -89,11 +97,13 @@ def ini_write(config, config_file):
     line.append('')
 
     line.append('[server]')
-    line.append('# 协议类型: TCP, UDP')
-    line.append('%s = %s' % ('protocols', ','.join(config['server']['protocols'])))
-    line.append('# 服务地址和端口')
-    line.append('%s = %s' % ('listen_ip', config['server']['listen_ip']))
-    line.append('%s = %s' % ('listen_port', config['server']['listen_port']))
+
+    line.append('# 监听协议|地址|端口: UDP|127.0.0.1|53')
+    items = []
+    for bind in config['server']['binds']:
+        items.append('%(protocol)s|%(ip)s|%(port)s' % bind)
+    line.append('binds = %s' % ','.join(items))
+
     line.append('# 搜索范围，本地还是远端: local, upstream')
     line.append('%s = %s' % ('search', ','.join(config['server']['search'])))
     line.append('# 允许访问的客户端范围: 192.168.1.0/24, 192.1682.10-100, 192.168.3.*')

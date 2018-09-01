@@ -6,13 +6,29 @@ import binascii
 import logging
 import logging.handlers
 import traceback
-
+import socket
 import socketserver
 
 from . import globalvars
 from . import lookup
 
 logger = logging.getLogger(__name__)
+
+
+class ThreadingTCPServer(socketserver.ThreadingTCPServer):
+    def __init__(self, server_address, RequestHandlerClass):
+        ip = server_address[0]
+        if ':' in ip:
+            self.address_family = socket.AF_INET6
+        super(ThreadingTCPServer, self).__init__(server_address, RequestHandlerClass)
+
+
+class ThreadingUDPServer(socketserver.ThreadingUDPServer):
+    def __init__(self, server_address, RequestHandlerClass):
+        ip = server_address[0]
+        if ':' in ip:
+            self.address_family = socket.AF_INET6
+        super(ThreadingUDPServer, self).__init__(server_address, RequestHandlerClass)
 
 
 class BaseRequestHandler(socketserver.BaseRequestHandler):

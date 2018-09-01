@@ -16,6 +16,13 @@ class defaults():
         'listen_ip': '127.0.0.1',
         # local listen port
         'listen_port': 53,
+        'binds': [
+            {
+                'protocol': 'udp',
+                'ip': '127.0.0.1',
+                'port': 53,
+            }
+        ],
         # search domain from 'local' or 'upstream'
         'search': ['local', 'upstream'],
         # allowed hosts to access
