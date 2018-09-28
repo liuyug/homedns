@@ -65,10 +65,10 @@ class BaseLoader(object):
     def open(self, proxy=None, cache=True):
         if self.local:
             self._last_update_time = os.stat(self.url).st_mtime
-            return open(self.url)
+            return open(self.url, encoding='utf-8')
         elif cache and os.path.exists(self.cache):
             self._last_update_time = os.stat(self.cache).st_mtime
-            return open(self.cache)
+            return open(self.cache, encoding='utf-8')
         else:
             r = Request(self.url)
             if proxy or self.proxy:
