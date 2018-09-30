@@ -150,8 +150,7 @@ def init_config(args):
                 if not dhcp_dnssvr:
                     dhcp_dnssvr = getdns(retry=3)
                     if not dhcp_dnssvr:
-                        logger.error('\tCould not catch DNS server from DHCP!!! Use default DNS server, "114.114.114.114" and "114.114.115.115".')
-                        dhcp_dnssvr = ['114.114.114.114', '114.114.115.115']
+                        logger.error('\tCould not catch DNS server from DHCP!!!')
                 dnssvr += dhcp_dnssvr
                 continue
             server = value.copy()

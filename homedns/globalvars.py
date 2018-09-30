@@ -44,7 +44,7 @@ class defaults():
                 'url': 'default.rules',
                 'proxy': False,
                 'refresh': 60 * 60 * 8,
-                'dns': ['114dns'],
+                'dns': ['dhcp', '114dns'],
             },
         ],
         'hack_srv': ['_ldap._tcp'],
@@ -64,6 +64,15 @@ class defaults():
         },
         # upstream dns server
         'upstreams': {
+            'dhcp': {
+                'ip': ['dhcp'],
+                'port': 53,
+                'protocol': 'dns',
+                'timeout': 2,
+                'proxy': False,
+                'tcp': False,
+                'priority': 50,
+            },
             '114dns': {
                 'ip': ['114.114.114.114', '114.114.115.115'],
                 'port': 53,
