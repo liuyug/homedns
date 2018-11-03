@@ -61,6 +61,7 @@ class Adblock(object):
                 line = line.strip()
                 if not line or line[0] in ('!', '['):
                     continue
+                # @@ white list
                 if line.startswith('@@'):
                     domain_list = self.whitelist
                     line = line.lstrip('@@')
@@ -69,7 +70,10 @@ class Adblock(object):
                 # remove protocols, http://
                 line = line.rpartition('://')[2]
                 # remove url, /url, /^
-                line = line.partition('/')[0]
+                url = line.partition('/')
+                if url[2]:
+                    continue
+                line = url[0]
                 # drop IP address, 1.1.1.1
                 if line.rpartition('.')[2].isdigit():
                     continue
@@ -121,6 +125,7 @@ class Adblock(object):
         line.append('White: %s' % self.whitelist)
         line.append('Black: %s' % self.blacklist)
         return line
+
 
 if __name__ == '__main__':
     import argparse
