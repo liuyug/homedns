@@ -110,7 +110,10 @@ class defaults():
                 'priority': 50,
             },
             'blahdns': {
-                'ip': ['https://doh.de.blahdns.com/dns-query', 'https://doh.blahdns.com/dns-query'],
+                'ip': [
+                    'https://doh-jp.blahdns.com/dns-query',
+                    'https://doh-de.blahdns.com/dns-query'
+                ],
                 'port': 443,
                 'protocol': 'doh',
                 'timeout': 2,
