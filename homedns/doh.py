@@ -23,7 +23,7 @@ def lookup_upstream(request, reply, server, proxy):
         message = '\tForward to server %(ip)s(%(priority)s)' % server
         message += ' with %s protocol' % server['protocol']
         if server['proxy'] and proxy:
-                message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
+            message += ' and proxy %(type)s://%(ip)s:%(port)s' % proxy
         logger.info(message)
 
         if server['protocol'] == 'doh_json':
