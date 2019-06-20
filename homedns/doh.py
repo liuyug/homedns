@@ -35,7 +35,7 @@ def lookup_upstream(request, reply, server, proxy):
                 url,
                 proxy=proxy if server['proxy'] else None,
             )
-            if data['Status'] == 0:
+            if data['Status'] == 0 and 'Answer' in data:
                 for r in data['Answer']:
                     answer = RR(
                         rname=r['name'],
