@@ -1,6 +1,7 @@
 
 import logging
 import json
+import re
 
 import urllib.request
 
@@ -13,6 +14,67 @@ from dnslib import RR, QTYPE, DNSRecord
 from . import globalvars
 
 logger = logging.getLogger(__name__)
+
+
+def dict2RR(r):
+    re_quote = re.compile(r'\"')
+    if QTYPE.SOA == r['type']:
+        d = r['data'].split()
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            mname=d[0],
+            rname=d[1],
+            times=[int(dd) for dd in d[2:]],
+        )
+    elif QTYPE.TXT == r['type']:
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            [re_quote.sub('', t) for t in r['data'].split()]
+        )
+    elif QTYPE.MX == r['type']:
+        d = r['data'].split()
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            d[0], int(d[1]),
+        )
+    elif QTYPE.SRV == r['type']:
+        d = r['data'].split()
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            int(d[0]), int(d[1]), int(d[2]), d[3],
+        )
+    elif QTYPE.NAPTR == r['type']:
+        d = r['data'].split()
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            int(d[0]), int(d[1]), d[2], d[3], d[4], d[5],
+        )
+    elif QTYPE.DNSKEY == r['type']:
+        d = r['data'].split()
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            int(d[0]), int(d[1]), int(d[2]), d[3],
+        )
+    elif QTYPE.RRSIG == r['type']:
+        d = r['data'].split()
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            d[0], int(d[1]), int(d[2]), int(d[3]),
+            d[4], d[5], int(d[6]), d[7], d[8],
+        )
+    elif QTYPE.NSEC == r['type']:
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            r['data'].split()
+        )
+    elif QTYPE.CAA == r['type']:
+        d = r['data'].split()
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            int(d[0]), d[1], d[2],
+        )
+    else:
+        rdata = getattr(dnslib, QTYPE[r['type']])(
+            r['data']
+        )
+    answer = RR(
+        rname=r['name'],
+        rtype=r['type'],
+        rclass=1, ttl=r['TTL'],
+        rdata=rdata,
+    )
+    return answer
 
 
 def lookup_upstream(request, reply, server, proxy):
@@ -35,15 +97,16 @@ def lookup_upstream(request, reply, server, proxy):
                 url,
                 proxy=proxy if server['proxy'] else None,
             )
-            if data['Status'] == 0 and 'Answer' in data:
-                for r in data['Answer']:
-                    answer = RR(
-                        rname=r['name'],
-                        rtype=r['type'],
-                        rclass=1, ttl=r['TTL'],
-                        rdata=getattr(dnslib, QTYPE[r['type']])(r['data']),
-                    )
-                    reply.add_answer(answer)
+            if data['Status'] == 0:
+                if 'Answer' in data:
+                    for record in data['Answer']:
+                        reply.add_answer(dict2RR(record))
+                if 'Authority' in data:
+                    for record in data['Authority']:
+                        reply.add_auth(dict2RR(record))
+                if 'Additional' in data:
+                    for record in data['Additional']:
+                        reply.add_ar(dict2RR(record))
         elif server['protocol'] == 'doh' or server['protocol'] == 'doh_wireformat':
             # GET method: ignore
             # base64 encode DNS message. It will conflict URL encoding character
