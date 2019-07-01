@@ -124,6 +124,7 @@ def dns_response(handler, data):
         reply.add_auth(*cache_reply.auth)
         reply.add_ar(*cache_reply.ar)
 
+        logger.warn('\tRequest "%s(%s)" is in CACHE.' % (qn, qt))
         logger.warn('\tReturn from CACHE:')
         if globalvars.dig:
             logger.warn(str(reply))
