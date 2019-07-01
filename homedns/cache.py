@@ -23,11 +23,11 @@ class MemoryCache(Cache):
         }
 
     @classmethod
-    def delete(cls, key, value):
+    def delete(cls, key):
         del cls._mobj[key]
 
     @classmethod
-    def clear(cls, key, value):
+    def clear(cls):
         cls._mobj = {}
 
     @classmethod
