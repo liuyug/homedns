@@ -6,6 +6,7 @@ import logging
 from . import globalvars
 from dnslib import RR, QTYPE, DNSRecord, DNSHeader, DNSLabel
 
+from .cache import DNSCache
 from . import dns
 from . import doh
 
@@ -114,10 +115,32 @@ def dns_response(handler, data):
         q=request.q
     )
 
-    if 'local' in globalvars.config['server']['search']:
-        indomain = lookup_local(request, reply)
-    if not indomain and 'upstream' in globalvars.config['server']['search']:
-        lookup_upstream(request, reply)
+    qn = request.q.qname
+    qt = QTYPE[request.q.qtype]
+    key = '%s|%s' % (qn, qt)
+    cache_reply = DNSCache.get(key)
+    if cache_reply:
+        reply.add_answer(*cache_reply.rr)
+        reply.add_auth(*cache_reply.auth)
+        reply.add_ar(*cache_reply.ar)
+
+        logger.warn('\tReturn from CACHE:')
+        if globalvars.dig:
+            logger.warn(str(reply))
+        else:
+            for r in reply.rr:
+                logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
+            for r in reply.auth:
+                logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
+            for r in reply.ar:
+                logger.warn('\t\t%s(%s)' % (r.rdata, QTYPE[r.rtype]))
+    else:
+        if 'local' in globalvars.config['server']['search']:
+            indomain = lookup_local(request, reply)
+        if not indomain and 'upstream' in globalvars.config['server']['search']:
+            lookup_upstream(request, reply)
+        if reply.rr:
+            DNSCache.add(key, reply)
 
     handler.send_data(reply.pack())
 
